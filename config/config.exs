@@ -52,6 +52,13 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Configure Quantum scheduler
+config :todo_app, TodoApp.Scheduler,
+  jobs: [
+    # Refresh demo data daily at 2 AM UTC
+    {"0 2 * * *", {TodoApp.Seeds.DataGenerator, :seed_database, []}}
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

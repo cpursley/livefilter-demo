@@ -15,6 +15,8 @@ defmodule TodoApp.Application do
       {Phoenix.PubSub, name: TodoApp.PubSub},
       # Start a worker by calling: TodoApp.Worker.start_link(arg)
       # {TodoApp.Worker, arg},
+      # Start the Quantum scheduler
+      TodoApp.Scheduler,
       # Start to serve requests, typically the last entry
       TodoAppWeb.Endpoint
     ]
