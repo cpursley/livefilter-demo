@@ -45,11 +45,11 @@ defmodule TodoAppWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
-  
+
   # Add Tidewave MCP server in development
   if Code.ensure_loaded?(Tidewave) do
     plug Tidewave
   end
-  
+
   plug TodoAppWeb.Router
 end

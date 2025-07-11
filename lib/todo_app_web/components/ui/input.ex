@@ -45,7 +45,8 @@ defmodule TodoAppUi.Input do
   attr :class, :any, default: nil
 
   attr :rest, :global,
-    include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
+    include:
+      ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
                 multiple pattern placeholder readonly required rows size step phx-change phx-target phx-value-* phx-click phx-blur phx-focus phx-submit)
 
   def input(assigns) do

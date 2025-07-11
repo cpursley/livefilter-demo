@@ -57,7 +57,8 @@ defmodule LiveFilter.FilterGroup do
   @doc """
   Updates a filter in the group by index.
   """
-  def update_filter(%__MODULE__{} = group, index, %LiveFilter.Filter{} = filter) when is_integer(index) do
+  def update_filter(%__MODULE__{} = group, index, %LiveFilter.Filter{} = filter)
+      when is_integer(index) do
     %{group | filters: List.replace_at(group.filters, index, filter)}
   end
 

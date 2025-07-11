@@ -1,11 +1,11 @@
 defmodule LiveFilter.Components.QuickFilter do
   @moduledoc """
   A dynamic filter component that renders the appropriate input based on filter type.
-  
+
   This component automatically detects the filter type and renders the appropriate
   UI element (text input, select, date picker, etc.) with consistent styling and
   behavior across all filter types.
-  
+
   ## Supported Types
   - `:string` - Text input
   - `:integer`, `:float` - Number input
@@ -14,9 +14,9 @@ defmodule LiveFilter.Components.QuickFilter do
   - `:datetime` - DateTime picker
   - `:enum` - Single select dropdown
   - `:array` - Multi-select dropdown
-  
+
   ## Usage
-  
+
       <.live_component
         module={LiveFilter.Components.QuickFilter}
         id="filter-title"
@@ -26,7 +26,7 @@ defmodule LiveFilter.Components.QuickFilter do
         value={@title_filter}
         icon="hero-document"
       />
-  
+
   Sends messages to parent LiveView:
   - `{:quick_filter_changed, field, value}` when value changes
   - `{:quick_filter_cleared, field}` when filter is cleared
@@ -36,33 +36,36 @@ defmodule LiveFilter.Components.QuickFilter do
   import LiveFilter.Components.SearchSelect
   alias LiveFilter.Components.DateRangeSelect
   alias Phoenix.LiveView.JS
-  
+
   @impl true
   def mount(socket) do
     {:ok, socket}
   end
-  
+
   @impl true
   def update(assigns, socket) do
     # Set defaults based on type
-    defaults = Map.merge(
-      %{class: nil},  # Add default class
-      default_assigns_for_type(assigns[:type])
-    )
+    defaults =
+      Map.merge(
+        # Add default class
+        %{class: nil},
+        default_assigns_for_type(assigns[:type])
+      )
+
     assigns = Map.merge(defaults, assigns)
-    
+
     {:ok, assign(socket, assigns)}
   end
-  
+
   @impl true
   def render(assigns) do
     ~H"""
     <div id={@id} class={["flex items-center gap-2", @class]}>
-      <%= render_filter_input(assigns) %>
+      {render_filter_input(assigns)}
     </div>
     """
   end
-  
+
   # Render different input types based on filter type
   defp render_filter_input(%{type: :string} = assigns) do
     ~H"""
@@ -89,7 +92,7 @@ defmodule LiveFilter.Components.QuickFilter do
     </div>
     """
   end
-  
+
   defp render_filter_input(%{type: type} = assigns) when type in [:integer, :float] do
     ~H"""
     <div class="relative">
@@ -116,7 +119,7 @@ defmodule LiveFilter.Components.QuickFilter do
     </div>
     """
   end
-  
+
   defp render_filter_input(%{type: :boolean} = assigns) do
     ~H"""
     <.button
@@ -134,7 +137,7 @@ defmodule LiveFilter.Components.QuickFilter do
     </.button>
     """
   end
-  
+
   defp render_filter_input(%{type: :date} = assigns) do
     ~H"""
     <.live_component
@@ -149,8 +152,9 @@ defmodule LiveFilter.Components.QuickFilter do
     />
     """
   end
-  
-  defp render_filter_input(%{type: type} = assigns) when type in [:datetime, :utc_datetime, :naive_datetime] do
+
+  defp render_filter_input(%{type: type} = assigns)
+       when type in [:datetime, :utc_datetime, :naive_datetime] do
     ~H"""
     <.live_component
       module={DateRangeSelect}
@@ -164,7 +168,7 @@ defmodule LiveFilter.Components.QuickFilter do
     />
     """
   end
-  
+
   defp render_filter_input(%{type: :enum} = assigns) do
     ~H"""
     <.search_select
@@ -180,7 +184,7 @@ defmodule LiveFilter.Components.QuickFilter do
     />
     """
   end
-  
+
   defp render_filter_input(%{type: :array} = assigns) do
     ~H"""
     <.search_select
@@ -198,7 +202,7 @@ defmodule LiveFilter.Components.QuickFilter do
     />
     """
   end
-  
+
   defp render_filter_input(assigns) do
     # Fallback for unknown types
     ~H"""
@@ -207,67 +211,75 @@ defmodule LiveFilter.Components.QuickFilter do
     </div>
     """
   end
-  
+
   @impl true
   def handle_event("value_changed", %{"value" => value}, socket) do
-    value = case socket.assigns.type do
-      :integer -> if value == "", do: nil, else: String.to_integer(value)
-      :float -> if value == "", do: nil, else: String.to_float(value)
-      _ -> if value == "", do: nil, else: value
-    end
-    
+    value =
+      case socket.assigns.type do
+        :integer -> if value == "", do: nil, else: String.to_integer(value)
+        :float -> if value == "", do: nil, else: String.to_float(value)
+        _ -> if value == "", do: nil, else: value
+      end
+
     send(self(), {:quick_filter_changed, socket.assigns.field, value})
     {:noreply, socket}
   end
-  
+
   @impl true
   def handle_event("clear_filter", _, socket) do
     send(self(), {:quick_filter_cleared, socket.assigns.field})
     {:noreply, socket}
   end
-  
+
   @impl true
   def handle_event("toggle_boolean", _, socket) do
     new_value = !socket.assigns.value
     send(self(), {:quick_filter_changed, socket.assigns.field, new_value})
     {:noreply, socket}
   end
-  
+
   @impl true
   def handle_event("enum_changed", params, socket) do
-    value = case params do
-      %{"select" => value} -> value
-      %{"clear" => true} -> nil
-      _ -> nil
-    end
-    
+    value =
+      case params do
+        %{"select" => value} -> value
+        %{"clear" => true} -> nil
+        _ -> nil
+      end
+
     send(self(), {:quick_filter_changed, socket.assigns.field, value})
     {:noreply, socket}
   end
-  
+
   @impl true
   def handle_event("array_changed", params, socket) do
-    values = case params do
-      %{"toggle" => value} ->
-        current = socket.assigns.value || []
-        if value in current do
-          List.delete(current, value)
-        else
-          [value | current]
-        end
-      %{"clear" => true} -> []
-      _ -> socket.assigns.value || []
-    end
-    
+    values =
+      case params do
+        %{"toggle" => value} ->
+          current = socket.assigns.value || []
+
+          if value in current do
+            List.delete(current, value)
+          else
+            [value | current]
+          end
+
+        %{"clear" => true} ->
+          []
+
+        _ ->
+          socket.assigns.value || []
+      end
+
     send(self(), {:quick_filter_changed, socket.assigns.field, values})
     {:noreply, socket}
   end
-  
+
   def handle_info({:date_range_selected, date_range}, socket) do
     send(self(), {:quick_filter_changed, socket.assigns.field, date_range})
     {:noreply, socket}
   end
-  
+
   # Default assigns based on type
   defp default_assigns_for_type(type) do
     case type do

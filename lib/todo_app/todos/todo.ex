@@ -23,7 +23,21 @@ defmodule TodoApp.Todos.Todo do
   @doc false
   def changeset(todo, attrs) do
     todo
-    |> cast(attrs, [:title, :description, :status, :due_date, :completed_at, :estimated_hours, :actual_hours, :is_urgent, :is_recurring, :tags, :assigned_to, :project, :complexity])
+    |> cast(attrs, [
+      :title,
+      :description,
+      :status,
+      :due_date,
+      :completed_at,
+      :estimated_hours,
+      :actual_hours,
+      :is_urgent,
+      :is_recurring,
+      :tags,
+      :assigned_to,
+      :project,
+      :complexity
+    ])
     |> validate_required([:title, :status])
     |> validate_number(:complexity, greater_than_or_equal_to: 1, less_than_or_equal_to: 10)
     |> validate_number(:estimated_hours, greater_than_or_equal_to: 0)

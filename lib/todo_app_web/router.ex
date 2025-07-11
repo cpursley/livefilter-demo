@@ -20,7 +20,7 @@ defmodule TodoAppWeb.Router do
     get "/", PageController, :home
 
     live "/todos", TodoLive.Index, :index
-    
+
     live "/demo", DemoLive
   end
 

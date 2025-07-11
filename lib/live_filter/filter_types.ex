@@ -5,13 +5,69 @@ defmodule LiveFilter.FilterTypes do
   """
 
   @type_operators %{
-    string: [:equals, :not_equals, :contains, :not_contains, :starts_with, :ends_with, :is_empty, :is_not_empty],
-    text: [:equals, :not_equals, :contains, :not_contains, :starts_with, :ends_with, :is_empty, :is_not_empty],
-    integer: [:equals, :not_equals, :greater_than, :less_than, :greater_than_or_equal, :less_than_or_equal, :between, :is_empty, :is_not_empty],
-    float: [:equals, :not_equals, :greater_than, :less_than, :greater_than_or_equal, :less_than_or_equal, :between, :is_empty, :is_not_empty],
+    string: [
+      :equals,
+      :not_equals,
+      :contains,
+      :not_contains,
+      :starts_with,
+      :ends_with,
+      :is_empty,
+      :is_not_empty
+    ],
+    text: [
+      :equals,
+      :not_equals,
+      :contains,
+      :not_contains,
+      :starts_with,
+      :ends_with,
+      :is_empty,
+      :is_not_empty
+    ],
+    integer: [
+      :equals,
+      :not_equals,
+      :greater_than,
+      :less_than,
+      :greater_than_or_equal,
+      :less_than_or_equal,
+      :between,
+      :is_empty,
+      :is_not_empty
+    ],
+    float: [
+      :equals,
+      :not_equals,
+      :greater_than,
+      :less_than,
+      :greater_than_or_equal,
+      :less_than_or_equal,
+      :between,
+      :is_empty,
+      :is_not_empty
+    ],
     boolean: [:is_true, :is_false],
-    date: [:equals, :before, :after, :on_or_before, :on_or_after, :between, :is_empty, :is_not_empty],
-    datetime: [:equals, :before, :after, :on_or_before, :on_or_after, :between, :is_empty, :is_not_empty],
+    date: [
+      :equals,
+      :before,
+      :after,
+      :on_or_before,
+      :on_or_after,
+      :between,
+      :is_empty,
+      :is_not_empty
+    ],
+    datetime: [
+      :equals,
+      :before,
+      :after,
+      :on_or_before,
+      :on_or_after,
+      :between,
+      :is_empty,
+      :is_not_empty
+    ],
     enum: [:equals, :not_equals, :in, :not_in, :is_empty, :is_not_empty],
     array: [:contains_any, :contains_all, :not_contains_any, :is_empty, :is_not_empty],
     multi_select: [:contains_any, :contains_all, :not_contains_any, :is_empty, :is_not_empty],

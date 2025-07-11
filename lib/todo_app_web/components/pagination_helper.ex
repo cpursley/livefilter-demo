@@ -3,10 +3,10 @@ defmodule TodoAppWeb.Components.PaginationHelper do
   Helper component for rendering pagination with automatic page calculation.
   """
   use Phoenix.Component
-  
+
   import TodoAppUi.Pagination
   import Phoenix.Component
-  
+
   alias Phoenix.LiveView.JS
 
   @doc """
@@ -26,9 +26,9 @@ defmodule TodoAppWeb.Components.PaginationHelper do
     <div class={["flex flex-col gap-4", @class]}>
       <div class="flex w-full flex-col-reverse items-center justify-between gap-6 overflow-auto sm:flex-row sm:gap-8">
         <div class="flex-1 whitespace-nowrap text-sm text-muted-foreground">
-          Page <%= @current_page || 1 %> of <%= @total_pages || 1 %>
+          Page {@current_page || 1} of {@total_pages || 1}
         </div>
-        
+
         <div class="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
           <div class="flex items-center space-x-2">
             <p class="whitespace-nowrap text-sm font-medium">Rows per page</p>
@@ -45,16 +45,19 @@ defmodule TodoAppWeb.Components.PaginationHelper do
               <option value="100">100</option>
             </select>
           </div>
-          
+
           <.pagination :if={@total_pages > 1}>
             <.pagination_content>
               <.pagination_item>
-                <.pagination_previous 
-                  phx-click={@current_page > 1 && JS.push(@on_navigate, value: %{page: @current_page - 1}) || nil}
-                  class={@current_page == 1 && "pointer-events-none opacity-50" || ""}
+                <.pagination_previous
+                  phx-click={
+                    (@current_page > 1 && JS.push(@on_navigate, value: %{page: @current_page - 1})) ||
+                      nil
+                  }
+                  class={(@current_page == 1 && "pointer-events-none opacity-50") || ""}
                 />
               </.pagination_item>
-              
+
               <%= for page_num <- pagination_range(@current_page, @total_pages) do %>
                 <%= if page_num == :ellipsis do %>
                   <.pagination_item>
@@ -62,20 +65,23 @@ defmodule TodoAppWeb.Components.PaginationHelper do
                   </.pagination_item>
                 <% else %>
                   <.pagination_item>
-                    <.pagination_link 
+                    <.pagination_link
                       is-active={page_num == @current_page}
                       phx-click={JS.push(@on_navigate, value: %{page: page_num})}
                     >
-                      <%= page_num %>
+                      {page_num}
                     </.pagination_link>
                   </.pagination_item>
                 <% end %>
               <% end %>
-              
+
               <.pagination_item>
-                <.pagination_next 
-                  phx-click={@current_page < @total_pages && JS.push(@on_navigate, value: %{page: @current_page + 1}) || nil}
-                  class={@current_page >= @total_pages && "pointer-events-none opacity-50" || ""}
+                <.pagination_next
+                  phx-click={
+                    (@current_page < @total_pages &&
+                       JS.push(@on_navigate, value: %{page: @current_page + 1})) || nil
+                  }
+                  class={(@current_page >= @total_pages && "pointer-events-none opacity-50") || ""}
                 />
               </.pagination_item>
             </.pagination_content>
@@ -88,7 +94,7 @@ defmodule TodoAppWeb.Components.PaginationHelper do
 
   # Calculate which page numbers to show
   defp pagination_range(_current, total) when total <= 0, do: []
-  
+
   defp pagination_range(_current, total) when total <= 5 do
     1..total |> Enum.to_list()
   end
@@ -99,11 +105,11 @@ defmodule TodoAppWeb.Components.PaginationHelper do
       current <= 3 ->
         list = [1, 2, 3]
         if total > 3, do: list ++ [:ellipsis, total], else: list
-      
+
       # At the end (last 3 pages)
       current >= total - 2 ->
         [1, :ellipsis, total - 2, total - 1, total]
-      
+
       # In the middle
       true ->
         [1, :ellipsis, current, :ellipsis, total]

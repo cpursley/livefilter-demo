@@ -4,6 +4,7 @@ defmodule TodoAppWeb.Components.FilterToolbar do
   Loosely follows shadcn table design pattern.
   """
   use Phoenix.Component
+
   use Phoenix.VerifiedRoutes,
     endpoint: TodoAppWeb.Endpoint,
     router: TodoAppWeb.Router,
@@ -21,7 +22,6 @@ defmodule TodoAppWeb.Components.FilterToolbar do
 
   alias Phoenix.LiveView.JS
 
-
   @doc """
   Renders a search input with debounced search functionality.
   """
@@ -34,7 +34,10 @@ defmodule TodoAppWeb.Components.FilterToolbar do
   def search_input(assigns) do
     ~H"""
     <form phx-change={@on_search} class={["relative flex items-center", @class]}>
-      <.icon name="hero-magnifying-glass" class="absolute left-2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <.icon
+        name="hero-magnifying-glass"
+        class="absolute left-2 h-4 w-4 text-muted-foreground pointer-events-none"
+      />
       <.input
         id={@id}
         type="text"
@@ -76,7 +79,11 @@ defmodule TodoAppWeb.Components.FilterToolbar do
         <.button variant="outline" size="sm" class={@class}>
           <.icon :if={@icon} name={@icon} class="mr-2 h-4 w-4" />
           {@label}
-          <.badge :if={@selected_count > 0} variant="secondary" class="ml-2 rounded-sm px-1 font-normal">
+          <.badge
+            :if={@selected_count > 0}
+            variant="secondary"
+            class="ml-2 rounded-sm px-1 font-normal"
+          >
             {@selected_count}
           </.badge>
         </.button>
@@ -95,18 +102,21 @@ defmodule TodoAppWeb.Components.FilterToolbar do
   attr :selected_statuses, :list, default: []
   attr :on_status_change, :any, default: nil
   attr :status_counts, :map, default: %{}
-  attr :statuses, :list, default: [
-    {:pending, "Pending", "default"},
-    {:in_progress, "In Progress", "secondary"},
-    {:completed, "Completed", "default"},
-    {:archived, "Archived", "outline"}
-  ]
+
+  attr :statuses, :list,
+    default: [
+      {:pending, "Pending", "default"},
+      {:in_progress, "In Progress", "secondary"},
+      {:completed, "Completed", "default"},
+      {:archived, "Archived", "outline"}
+    ]
 
   def status_filter(assigns) do
     # Convert status tuples to SearchSelect format
-    options = Enum.map(assigns.statuses, fn {value, label, _variant} ->
-      {value, label}
-    end)
+    options =
+      Enum.map(assigns.statuses, fn {value, label, _variant} ->
+        {value, label}
+      end)
 
     assigns = assign(assigns, :options, options)
 
@@ -131,13 +141,15 @@ defmodule TodoAppWeb.Components.FilterToolbar do
   attr :id, :string, default: "assignee-filter"
   attr :selected_assignees, :list, default: []
   attr :on_assignee_change, :any, default: nil
-  attr :assignees, :list, default: [
-    {"john_doe", "John Doe"},
-    {"jane_smith", "Jane Smith"},
-    {"bob_johnson", "Bob Johnson"},
-    {"alice_williams", "Alice Williams"},
-    {"charlie_brown", "Charlie Brown"}
-  ]
+
+  attr :assignees, :list,
+    default: [
+      {"john_doe", "John Doe"},
+      {"jane_smith", "Jane Smith"},
+      {"bob_johnson", "Bob Johnson"},
+      {"alice_williams", "Alice Williams"},
+      {"charlie_brown", "Charlie Brown"}
+    ]
 
   def assignee_filter(assigns) do
     assigns = assign(assigns, :options, assigns.assignees)
@@ -182,11 +194,12 @@ defmodule TodoAppWeb.Components.FilterToolbar do
     ]
 
     # Only add enabled_presets if it's explicitly set
-    attrs = if assigns.enabled_presets != nil do
-      Keyword.put(attrs, :enabled_presets, assigns.enabled_presets)
-    else
-      attrs
-    end
+    attrs =
+      if assigns.enabled_presets != nil do
+        Keyword.put(attrs, :enabled_presets, assigns.enabled_presets)
+      else
+        attrs
+      end
 
     assigns = assign(assigns, :attrs, attrs)
 
@@ -206,11 +219,7 @@ defmodule TodoAppWeb.Components.FilterToolbar do
 
   def boolean_filter(assigns) do
     ~H"""
-    <.button
-      variant={if @selected, do: "default", else: "outline"}
-      size="sm"
-      phx-click={@on_change}
-    >
+    <.button variant={if @selected, do: "default", else: "outline"} size="sm" phx-click={@on_change}>
       <.icon :if={@icon} name={@icon} class="mr-2 h-4 w-4" />
       <%= if @selected do %>
         {@label}
@@ -252,11 +261,7 @@ defmodule TodoAppWeb.Components.FilterToolbar do
     ~H"""
     <div :if={@filters != []} class="flex flex-wrap items-center gap-2 p-4 border-t">
       <span class="text-sm text-muted-foreground">Active filters:</span>
-      <.badge
-        :for={{filter, index} <- Enum.with_index(@filters)}
-        variant="secondary"
-        class="gap-1"
-      >
+      <.badge :for={{filter, index} <- Enum.with_index(@filters)} variant="secondary" class="gap-1">
         {filter_label(filter)}
         <.button
           variant="ghost"
@@ -267,12 +272,7 @@ defmodule TodoAppWeb.Components.FilterToolbar do
           <.icon name="hero-x-mark" class="h-3 w-3" />
         </.button>
       </.badge>
-      <.button
-        variant="ghost"
-        size="sm"
-        class="h-6"
-        phx-click={@on_clear_all}
-      >
+      <.button variant="ghost" size="sm" class="h-6" phx-click={@on_clear_all}>
         Clear all
       </.button>
     </div>

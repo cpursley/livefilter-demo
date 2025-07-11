@@ -45,21 +45,23 @@ defmodule TodoApp.Todos do
   def list_todos_paginated(filter_group \\ nil, sorts \\ nil, opts \\ []) do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 10)
-    
-    base_query = Todo
-    |> apply_filters(filter_group)
-    |> apply_sorts(sorts)
-    
+
+    base_query =
+      Todo
+      |> apply_filters(filter_group)
+      |> apply_sorts(sorts)
+
     # Get total count before pagination
     total_count = Repo.aggregate(base_query, :count, :id)
-    
+
     # Apply pagination
-    todos = base_query
-    |> apply_pagination(page, per_page)
-    |> Repo.all()
-    
+    todos =
+      base_query
+      |> apply_pagination(page, per_page)
+      |> Repo.all()
+
     total_pages = ceil(total_count / per_page)
-    
+
     %{
       todos: todos,
       total_count: total_count,
@@ -79,22 +81,66 @@ defmodule TodoApp.Todos do
   end
 
   defp apply_filters(query, nil), do: query
+
   defp apply_filters(query, filter_group) do
-    LiveFilter.QueryBuilder.build_query(query, filter_group)
+    # Check if there's a special _search filter
+    {search_filters, regular_filters} =
+      Enum.split_with(filter_group.filters, fn filter ->
+        filter.field == :_search
+      end)
+
+    # Build a new filter group with search filters expanded
+    expanded_filters =
+      case search_filters do
+        [%{value: search_term}] ->
+          # Expand search into OR conditions for title and description
+          search_group = %LiveFilter.FilterGroup{
+            filters: [
+              %LiveFilter.Filter{
+                field: :title,
+                operator: :contains,
+                value: search_term,
+                type: :string
+              },
+              %LiveFilter.Filter{
+                field: :description,
+                operator: :contains,
+                value: search_term,
+                type: :string
+              }
+            ],
+            conjunction: :or
+          }
+
+          {regular_filters, [search_group]}
+
+        _ ->
+          {regular_filters, []}
+      end
+
+    # Create the final filter group
+    final_filter_group = %LiveFilter.FilterGroup{
+      filters: elem(expanded_filters, 0),
+      groups: elem(expanded_filters, 1) ++ filter_group.groups,
+      conjunction: filter_group.conjunction
+    }
+
+    LiveFilter.QueryBuilder.build_query(query, final_filter_group)
   end
 
   defp apply_sorts(query, nil), do: query
+
   defp apply_sorts(query, sorts) do
     LiveFilter.QueryBuilder.apply_sort(query, sorts)
   end
 
   defp apply_pagination(query, page, per_page) do
     offset = (page - 1) * per_page
+
     query
     |> limit(^per_page)
     |> offset(^offset)
   end
-
 
   @doc """
   Creates a todo.
@@ -113,7 +159,6 @@ defmodule TodoApp.Todos do
     |> Todo.changeset(attrs)
     |> Repo.insert()
   end
-
 
   @doc """
   Returns counts of todos grouped by status.
@@ -137,4 +182,19 @@ defmodule TodoApp.Todos do
     |> Map.new()
   end
 
+  @doc """
+  Gets a single todo.
+
+  Raises `Ecto.NoResultsError` if the Todo does not exist.
+
+  ## Examples
+
+      iex> get_todo!(123)
+      %Todo{}
+
+      iex> get_todo!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_todo!(id), do: Repo.get!(Todo, id)
 end

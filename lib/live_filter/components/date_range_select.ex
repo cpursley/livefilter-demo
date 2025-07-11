@@ -2,29 +2,29 @@ defmodule LiveFilter.Components.DateRangeSelect do
   @moduledoc """
   A reusable date range selector component for LiveFilter.
   Provides preset date ranges and custom date range selection with a calendar picker.
-  
+
   ## JavaScript Hook Dependency
-  
+
   This component requires the `DateCalendarPosition` JavaScript hook to function properly.
   The hook handles positioning of the calendar dropdown to prevent viewport overflow and
   maintains stable positioning during date selection.
-  
+
   ### Installation
-  
+
   When using LiveFilter as a library, run the following to install JavaScript assets:
-  
+
       mix live_filter.install.assets
-  
+
   Then import the hook in your `app.js`:
-  
+
       import DateCalendarPosition from "./hooks/live_filter/date_calendar_position"
       
       let liveSocket = new LiveSocket("/live", Socket, {
         hooks: { DateCalendarPosition }
       })
-  
+
   ### Hook Details
-  
+
   The `DateCalendarPosition` hook:
   - Calculates optimal calendar position to stay within viewport
   - Handles window resize events
@@ -51,7 +51,6 @@ defmodule LiveFilter.Components.DateRangeSelect do
     this_year: {"this_year", "This year"}
   }
 
-
   @impl true
   def mount(socket) do
     {:ok,
@@ -68,30 +67,46 @@ defmodule LiveFilter.Components.DateRangeSelect do
     # Handle preset configuration
     enabled_presets = assigns[:enabled_presets] || Map.keys(@default_date_presets)
 
-    date_presets = if enabled_presets == [] do
-      []
-    else
-      # Build the list of presets based on enabled keys, in logical chronological order
-      [:last_month, :last_30_days, :last_7_days, :yesterday, :today,
-       :tomorrow, :next_7_days, :this_month, :next_30_days, :this_year]
-      |> Enum.filter(&(&1 in enabled_presets))
-      |> Enum.map(&Map.get(@default_date_presets, &1))
-      |> Enum.reject(&is_nil/1)
-    end
+    date_presets =
+      if enabled_presets == [] do
+        []
+      else
+        # Build the list of presets based on enabled keys, in logical chronological order
+        [
+          :last_month,
+          :last_30_days,
+          :last_7_days,
+          :yesterday,
+          :today,
+          :tomorrow,
+          :next_7_days,
+          :this_month,
+          :next_30_days,
+          :this_year
+        ]
+        |> Enum.filter(&(&1 in enabled_presets))
+        |> Enum.map(&Map.get(@default_date_presets, &1))
+        |> Enum.reject(&is_nil/1)
+      end
 
     # Set default values for optional assigns
-    assigns = Map.merge(%{
-      value: nil,
-      label: "Date",
-      icon: "hero-calendar-days",
-      size: "sm",
-      class: nil,
-      date_presets: date_presets,
-      enabled_presets: enabled_presets,
-      timestamp_type: :date,  # :date | :datetime | :utc_datetime | :naive_datetime
-      year_range: {-100, 20}  # {past_years, future_years} from current year
-    }, assigns)
-
+    assigns =
+      Map.merge(
+        %{
+          value: nil,
+          label: "Date",
+          icon: "hero-calendar-days",
+          size: "sm",
+          class: nil,
+          date_presets: date_presets,
+          enabled_presets: enabled_presets,
+          # :date | :datetime | :utc_datetime | :naive_datetime
+          timestamp_type: :date,
+          # {past_years, future_years} from current year
+          year_range: {-100, 20}
+        },
+        assigns
+      )
 
     {:ok,
      socket
@@ -102,7 +117,7 @@ defmodule LiveFilter.Components.DateRangeSelect do
   @impl true
   def render(assigns) do
     ~H"""
-    <div id={"#{@id}-wrapper"} class="relative"}>
+    <div id={"#{@id}-wrapper"} class="relative" }>
       <%= if @date_presets == [] do %>
         <.button
           variant="outline"
@@ -204,7 +219,10 @@ defmodule LiveFilter.Components.DateRangeSelect do
           phx-hook="DateCalendarPosition"
           data-positioned={@show_calendar}
         >
-          <div class="fixed bg-popover rounded-lg border shadow-lg p-0 w-auto min-w-[600px]" data-calendar-content>
+          <div
+            class="fixed bg-popover rounded-lg border shadow-lg p-0 w-auto min-w-[600px]"
+            data-calendar-content
+          >
             <div class="flex">
               <.render_calendar
                 month={@current_month}
@@ -244,21 +262,34 @@ defmodule LiveFilter.Components.DateRangeSelect do
     current_month = assigns.month.month
 
     month_options = [
-      {"1", "Jan"}, {"2", "Feb"}, {"3", "Mar"}, {"4", "Apr"},
-      {"5", "May"}, {"6", "Jun"}, {"7", "Jul"}, {"8", "Aug"},
-      {"9", "Sep"}, {"10", "Oct"}, {"11", "Nov"}, {"12", "Dec"}
+      {"1", "Jan"},
+      {"2", "Feb"},
+      {"3", "Mar"},
+      {"4", "Apr"},
+      {"5", "May"},
+      {"6", "Jun"},
+      {"7", "Jul"},
+      {"8", "Aug"},
+      {"9", "Sep"},
+      {"10", "Oct"},
+      {"11", "Nov"},
+      {"12", "Dec"}
     ]
 
     # Generate year options based on configurable range
     this_year = Date.utc_today().year
     {past_years, future_years} = assigns.year_range
-    year_options = for year <- (this_year + past_years)..(this_year + future_years), do: {to_string(year), to_string(year)}
 
-    assigns = assigns
-    |> assign(:current_month, current_month)
-    |> assign(:current_year, current_year)
-    |> assign(:month_options, month_options)
-    |> assign(:year_options, year_options)
+    year_options =
+      for year <- (this_year + past_years)..(this_year + future_years),
+          do: {to_string(year), to_string(year)}
+
+    assigns =
+      assigns
+      |> assign(:current_month, current_month)
+      |> assign(:current_year, current_year)
+      |> assign(:month_options, month_options)
+      |> assign(:year_options, year_options)
 
     ~H"""
     <div class={["p-3 w-[280px]", @class]}>
@@ -281,7 +312,13 @@ defmodule LiveFilter.Components.DateRangeSelect do
               phx-target={@myself}
               value={to_string(@current_month)}
             >
-              <option :for={{value, label} <- @month_options} value={value} selected={value == to_string(@current_month)}>{label}</option>
+              <option
+                :for={{value, label} <- @month_options}
+                value={value}
+                selected={value == to_string(@current_month)}
+              >
+                {label}
+              </option>
             </select>
 
             <select
@@ -290,7 +327,13 @@ defmodule LiveFilter.Components.DateRangeSelect do
               phx-target={@myself}
               value={to_string(@current_year)}
             >
-              <option :for={{value, label} <- @year_options} value={value} selected={value == to_string(@current_year)}>{label}</option>
+              <option
+                :for={{value, label} <- @year_options}
+                value={value}
+                selected={value == to_string(@current_year)}
+              >
+                {label}
+              </option>
             </select>
           </div>
 
@@ -308,7 +351,10 @@ defmodule LiveFilter.Components.DateRangeSelect do
         <table class="w-full border-collapse space-y-1">
           <thead>
             <tr class="flex w-full">
-              <th :for={day <- ~w(S M T W T F S)} class="text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]">
+              <th
+                :for={day <- ~w(S M T W T F S)}
+                class="text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]"
+              >
                 {day}
               </th>
             </tr>
@@ -317,14 +363,18 @@ defmodule LiveFilter.Components.DateRangeSelect do
             <%= for {week, _week_idx} <- Enum.with_index(calendar_weeks(@month)) do %>
               <tr class="flex w-full mt-2">
                 <%= for {day, day_idx} <- Enum.with_index(week) do %>
-                  <td
-                    class={[
-                      "h-9 w-9 text-center text-sm p-0 relative",
-                      day && @selected_start && @selected_end && is_in_range?(day, @selected_start, @selected_end) && !is_selected?(day, @selected_start, @selected_end) && "bg-accent",
-                      day && @selected_start && @selected_end && is_in_range?(day, @selected_start, @selected_end) && day_idx == 0 && !is_selected?(day, @selected_start, @selected_end) && "rounded-l-md",
-                      day && @selected_start && @selected_end && is_in_range?(day, @selected_start, @selected_end) && day_idx == 6 && !is_selected?(day, @selected_start, @selected_end) && "rounded-r-md"
-                    ]}
-                  >
+                  <td class={[
+                    "h-9 w-9 text-center text-sm p-0 relative",
+                    day && @selected_start && @selected_end &&
+                      is_in_range?(day, @selected_start, @selected_end) &&
+                      !is_selected?(day, @selected_start, @selected_end) && "bg-accent",
+                    day && @selected_start && @selected_end &&
+                      is_in_range?(day, @selected_start, @selected_end) && day_idx == 0 &&
+                      !is_selected?(day, @selected_start, @selected_end) && "rounded-l-md",
+                    day && @selected_start && @selected_end &&
+                      is_in_range?(day, @selected_start, @selected_end) && day_idx == 6 &&
+                      !is_selected?(day, @selected_start, @selected_end) && "rounded-r-md"
+                  ]}>
                     <%= if day && day.month == @month.month do %>
                       <button
                         type="button"
@@ -332,10 +382,18 @@ defmodule LiveFilter.Components.DateRangeSelect do
                           "inline-flex h-9 w-9 items-center justify-center text-sm ring-offset-background transition-colors rounded-md",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           "disabled:pointer-events-none disabled:opacity-50",
-                          is_selected?(day, @selected_start, @selected_end) && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-                          !is_selected?(day, @selected_start, @selected_end) && is_in_range?(day, @selected_start, @selected_end) && "hover:bg-accent hover:text-accent-foreground",
-                          !is_selected?(day, @selected_start, @selected_end) && !is_in_range?(day, @selected_start, @selected_end) && "hover:bg-accent hover:text-accent-foreground",
-                          day == Date.utc_today() && !is_selected?(day, @selected_start, @selected_end) && !is_in_range?(day, @selected_start, @selected_end) && "bg-accent text-accent-foreground"
+                          is_selected?(day, @selected_start, @selected_end) &&
+                            "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
+                          !is_selected?(day, @selected_start, @selected_end) &&
+                            is_in_range?(day, @selected_start, @selected_end) &&
+                            "hover:bg-accent hover:text-accent-foreground",
+                          !is_selected?(day, @selected_start, @selected_end) &&
+                            !is_in_range?(day, @selected_start, @selected_end) &&
+                            "hover:bg-accent hover:text-accent-foreground",
+                          day == Date.utc_today() &&
+                            !is_selected?(day, @selected_start, @selected_end) &&
+                            !is_in_range?(day, @selected_start, @selected_end) &&
+                            "bg-accent text-accent-foreground"
                         ]}
                         phx-click="select_date"
                         phx-value-date={Date.to_iso8601(day)}
@@ -398,10 +456,11 @@ defmodule LiveFilter.Components.DateRangeSelect do
     {:ok, date} = Date.from_iso8601(date_string)
 
     if socket.assigns.selecting_start do
-      socket = socket
-      |> assign(:temp_start_date, date)
-      |> assign(:temp_end_date, nil)
-      |> assign(:selecting_start, false)
+      socket =
+        socket
+        |> assign(:temp_start_date, date)
+        |> assign(:temp_end_date, nil)
+        |> assign(:selecting_start, false)
 
       {:noreply, socket}
     else
@@ -409,23 +468,25 @@ defmodule LiveFilter.Components.DateRangeSelect do
       end_date = date
 
       # Swap if end is before start
-      {start_date, end_date} = if Date.compare(end_date, start_date) == :lt do
-        {end_date, start_date}
-      else
-        {start_date, end_date}
-      end
+      {start_date, end_date} =
+        if Date.compare(end_date, start_date) == :lt do
+          {end_date, start_date}
+        else
+          {start_date, end_date}
+        end
 
       # Auto-apply the date range when second date is selected
-      date_range = LiveFilter.DateUtils.convert_range_to_type(
-        {start_date, end_date},
-        socket.assigns.timestamp_type
-      )
+      date_range =
+        LiveFilter.DateUtils.convert_range_to_type(
+          {start_date, end_date},
+          socket.assigns.timestamp_type
+        )
+
       send(self(), {:date_range_selected, date_range})
 
       {:noreply, assign(socket, :show_calendar, false)}
     end
   end
-
 
   @impl true
   def handle_event("clear", _, socket) do
@@ -435,13 +496,20 @@ defmodule LiveFilter.Components.DateRangeSelect do
 
   @impl true
   def handle_event("prev_month", _, socket) do
-    new_month = Date.add(socket.assigns.current_month, -Date.days_in_month(Date.add(socket.assigns.current_month, -1)))
+    new_month =
+      Date.add(
+        socket.assigns.current_month,
+        -Date.days_in_month(Date.add(socket.assigns.current_month, -1))
+      )
+
     {:noreply, assign(socket, :current_month, new_month)}
   end
 
   @impl true
   def handle_event("next_month", _, socket) do
-    new_month = Date.add(socket.assigns.current_month, Date.days_in_month(socket.assigns.current_month))
+    new_month =
+      Date.add(socket.assigns.current_month, Date.days_in_month(socket.assigns.current_month))
+
     {:noreply, assign(socket, :current_month, new_month)}
   end
 
@@ -462,25 +530,29 @@ defmodule LiveFilter.Components.DateRangeSelect do
   # Helper functions
 
   defp assign_display_value(socket) do
-    display_value = case socket.assigns[:value] do
-      nil -> nil
-      {start_val, end_val} ->
-        # Convert to dates for display if timestamps
-        start_date = to_display_date(start_val)
-        end_date = to_display_date(end_val)
+    display_value =
+      case socket.assigns[:value] do
+        nil ->
+          nil
 
-        if start_date == end_date do
-          format_date(start_date)
-        else
-          "#{format_date(start_date)} - #{format_date(end_date)}"
-        end
-      preset when is_binary(preset) ->
-        # Find the preset in the configured date_presets
-        case List.keyfind(socket.assigns.date_presets, preset, 0) do
-          {_, label} -> label
-          nil -> preset
-        end
-    end
+        {start_val, end_val} ->
+          # Convert to dates for display if timestamps
+          start_date = to_display_date(start_val)
+          end_date = to_display_date(end_val)
+
+          if start_date == end_date do
+            format_date(start_date)
+          else
+            "#{format_date(start_date)} - #{format_date(end_date)}"
+          end
+
+        preset when is_binary(preset) ->
+          # Find the preset in the configured date_presets
+          case List.keyfind(socket.assigns.date_presets, preset, 0) do
+            {_, label} -> label
+            nil -> preset
+          end
+      end
 
     assign(socket, :display_value, display_value)
   end
@@ -510,8 +582,8 @@ defmodule LiveFilter.Components.DateRangeSelect do
 
   defp is_in_range?(date, start_date, end_date) do
     start_date && end_date &&
-    Date.compare(date, start_date) in [:gt, :eq] &&
-    Date.compare(date, end_date) in [:lt, :eq]
+      Date.compare(date, start_date) in [:gt, :eq] &&
+      Date.compare(date, end_date) in [:lt, :eq]
   end
 
   defp format_date(date) do

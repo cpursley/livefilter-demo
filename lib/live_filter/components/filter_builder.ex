@@ -18,8 +18,7 @@ defmodule LiveFilter.Components.FilterBuilder do
             size="sm"
             type="button"
           >
-            <.icon name="hero-plus" class="w-4 h-4 mr-1" />
-            Add Filter
+            <.icon name="hero-plus" class="w-4 h-4 mr-1" /> Add Filter
           </Button.button>
           <%= if FilterGroup.has_filters?(@filter_group) do %>
             <Button.button
@@ -106,5 +105,4 @@ defmodule LiveFilter.Components.FilterBuilder do
 
   # Note: LiveComponents don't have handle_info, these messages will be sent to the parent LiveView
   # The parent LiveView should handle {:filter_updated, index, filter} and {:filter_removed, index}
-
 end

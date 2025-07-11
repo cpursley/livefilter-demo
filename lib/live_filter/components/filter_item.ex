@@ -3,7 +3,7 @@ defmodule LiveFilter.Components.FilterItem do
   alias LiveFilter.FilterTypes
   alias TodoAppUi.{Button, Switch, Badge, Input}
   import TodoAppWeb.CoreComponents, only: [icon: 1]
-  
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -18,11 +18,11 @@ defmodule LiveFilter.Components.FilterItem do
           class="w-full px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <%= for {field, label, _type, _opts} <- @field_options do %>
-            <option value={field} selected={field == @filter.field}><%= label %></option>
+            <option value={field} selected={field == @filter.field}>{label}</option>
           <% end %>
         </select>
       </div>
-      
+
       <div class="w-1/4">
         <select
           id={"operator-select-#{@index}"}
@@ -34,18 +34,18 @@ defmodule LiveFilter.Components.FilterItem do
         >
           <%= for operator <- FilterTypes.operators_for_type(@filter.type) do %>
             <option value={operator} selected={operator == @filter.operator}>
-              <%= FilterTypes.operator_label(operator) %>
+              {FilterTypes.operator_label(operator)}
             </option>
           <% end %>
         </select>
       </div>
-      
+
       <%= if FilterTypes.operator_requires_value?(@filter.operator) do %>
         <div class="flex-1">
-          <%= render_value_input(assigns) %>
+          {render_value_input(assigns)}
         </div>
       <% end %>
-      
+
       <div>
         <Button.button
           phx-click="remove_filter"
@@ -64,30 +64,31 @@ defmodule LiveFilter.Components.FilterItem do
 
   defp render_value_input(assigns) do
     cond do
-      assigns.filter.operator in [:between] and assigns.filter.type in [:date, :datetime, :integer, :float] ->
+      assigns.filter.operator in [:between] and
+          assigns.filter.type in [:date, :datetime, :integer, :float] ->
         render_range_input(assigns)
-      
+
       assigns.filter.type == :boolean ->
         render_boolean_toggle(assigns)
-      
+
       assigns.filter.type == :date ->
         render_date_input(assigns)
-      
+
       assigns.filter.type == :datetime ->
         render_datetime_input(assigns)
-      
+
       assigns.filter.type in [:integer, :float] ->
         render_number_input(assigns)
-      
+
       assigns.filter.type == :enum and assigns.filter.field in [:status] ->
         render_enum_select(assigns)
-      
+
       assigns.filter.type == :enum and assigns.filter.field in [:assigned_to, :project] ->
         render_searchable_select(assigns)
-      
+
       assigns.filter.type == :array ->
         render_multi_select(assigns)
-      
+
       true ->
         render_text_input(assigns)
     end
@@ -143,7 +144,7 @@ defmodule LiveFilter.Components.FilterItem do
         phx-target={@myself}
       />
       <span class="text-sm text-muted-foreground">
-        <%= if @filter.value == true, do: "Yes", else: "No" %>
+        {if @filter.value == true, do: "Yes", else: "No"}
       </span>
     </div>
     """
@@ -205,7 +206,7 @@ defmodule LiveFilter.Components.FilterItem do
       <div class="flex flex-wrap gap-1">
         <%= if is_list(@filter.value) && length(@filter.value) > 0 do %>
           <Badge.badge :for={value <- @filter.value} variant="secondary" class="text-xs">
-            <%= get_label_for_value(@filter.field, value) %>
+            {get_label_for_value(@filter.field, value)}
             <button
               type="button"
               phx-click="remove_multi_value"
@@ -227,7 +228,7 @@ defmodule LiveFilter.Components.FilterItem do
         <option value="">Add tag...</option>
         <%= for option <- get_field_options(@filter.field) do %>
           <%= unless is_selected?(option.value, @filter.value) do %>
-            <option value={option.value}><%= option.label %></option>
+            <option value={option.value}>{option.label}</option>
           <% end %>
         <% end %>
       </select>
@@ -258,7 +259,7 @@ defmodule LiveFilter.Components.FilterItem do
     >
       <option value="">All</option>
       <%= for option <- get_field_options(@filter.field) do %>
-        <option value={option.value} selected={option.value == @filter.value}><%= option.label %></option>
+        <option value={option.value} selected={option.value == @filter.value}>{option.label}</option>
       <% end %>
     </select>
     """
@@ -275,7 +276,7 @@ defmodule LiveFilter.Components.FilterItem do
     >
       <option value="">All</option>
       <%= for option <- get_field_options(@filter.field) do %>
-        <option value={option.value} selected={option.value == @filter.value}><%= option.label %></option>
+        <option value={option.value} selected={option.value == @filter.value}>{option.label}</option>
       <% end %>
     </select>
     """
@@ -294,13 +295,15 @@ defmodule LiveFilter.Components.FilterItem do
   @impl true
   def handle_event("field_changed", %{"field" => field}, socket) do
     field = String.to_existing_atom(field)
-    {_field, _label, type, _opts} = Enum.find(socket.assigns.field_options, fn {f, _, _, _} -> f == field end)
-    
+
+    {_field, _label, type, _opts} =
+      Enum.find(socket.assigns.field_options, fn {f, _, _, _} -> f == field end)
+
     operators = FilterTypes.operators_for_type(type)
     operator = List.first(operators)
-    
+
     filter = %{socket.assigns.filter | field: field, operator: operator, type: type, value: nil}
-    
+
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
   end
@@ -309,7 +312,7 @@ defmodule LiveFilter.Components.FilterItem do
   def handle_event("operator_changed", %{"operator" => operator}, socket) do
     operator = String.to_existing_atom(operator)
     filter = %{socket.assigns.filter | operator: operator, value: nil}
-    
+
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
   end
@@ -320,7 +323,7 @@ defmodule LiveFilter.Components.FilterItem do
     parsed_value = parse_value(value, socket.assigns.filter.type)
     IO.inspect(parsed_value, label: "Parsed value")
     filter = %{socket.assigns.filter | value: parsed_value}
-    
+
     # Send to parent LiveView
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
@@ -330,7 +333,7 @@ defmodule LiveFilter.Components.FilterItem do
   def handle_event("add_multi_value", %{"value" => ""}, socket) do
     {:noreply, socket}
   end
-  
+
   @impl true
   def handle_event("add_multi_value", %{"value" => value}, socket) do
     current_values = socket.assigns.filter.value || []
@@ -338,7 +341,7 @@ defmodule LiveFilter.Components.FilterItem do
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
   end
-  
+
   @impl true
   def handle_event("remove_multi_value", %{"value" => value}, socket) do
     current_values = socket.assigns.filter.value || []
@@ -352,7 +355,7 @@ defmodule LiveFilter.Components.FilterItem do
     min_val = parse_number(min_value, socket.assigns.filter.type)
     max_val = get_range_max(socket.assigns.filter.value)
     value = {min_val, max_val}
-    
+
     filter = %{socket.assigns.filter | value: value}
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
@@ -363,7 +366,7 @@ defmodule LiveFilter.Components.FilterItem do
     max_val = parse_number(max_value, socket.assigns.filter.type)
     min_val = get_range_min(socket.assigns.filter.value)
     value = {min_val, max_val}
-    
+
     filter = %{socket.assigns.filter | value: value}
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
@@ -379,7 +382,7 @@ defmodule LiveFilter.Components.FilterItem do
   def handle_event("toggle_boolean", _params, socket) do
     new_value = !socket.assigns.filter.value
     filter = %{socket.assigns.filter | value: new_value}
-    
+
     send(self(), {:filter_updated, socket.assigns.index, filter})
     {:noreply, assign(socket, :filter, filter)}
   end
@@ -397,10 +400,12 @@ defmodule LiveFilter.Components.FilterItem do
   defp is_selected?(value, filter_value) when is_list(filter_value) do
     Enum.member?(filter_value, value)
   end
+
   defp is_selected?(value, filter_value), do: value == filter_value
 
   defp get_label_for_value(field, value) do
     options = get_field_options(field)
+
     case Enum.find(options, fn opt -> opt.value == value end) do
       %{label: label} -> label
       nil -> value
@@ -425,6 +430,7 @@ defmodule LiveFilter.Components.FilterItem do
   end
 
   defp parse_integer(""), do: nil
+
   defp parse_integer(value) do
     case Integer.parse(value) do
       {int, _} -> int
@@ -433,6 +439,7 @@ defmodule LiveFilter.Components.FilterItem do
   end
 
   defp parse_float(""), do: nil
+
   defp parse_float(value) do
     case Float.parse(value) do
       {float, _} -> float
@@ -445,6 +452,7 @@ defmodule LiveFilter.Components.FilterItem do
   defp parse_number(value, _), do: value
 
   defp parse_date(""), do: nil
+
   defp parse_date(value) do
     case Date.from_iso8601(value) do
       {:ok, date} -> date
@@ -453,6 +461,7 @@ defmodule LiveFilter.Components.FilterItem do
   end
 
   defp parse_datetime(""), do: nil
+
   defp parse_datetime(value) do
     case DateTime.from_iso8601(value) do
       {:ok, datetime, _} -> datetime
@@ -461,8 +470,10 @@ defmodule LiveFilter.Components.FilterItem do
   end
 
   defp format_datetime_value(nil), do: ""
+
   defp format_datetime_value(%DateTime{} = datetime) do
     Calendar.strftime(datetime, "%Y-%m-%dT%H:%M")
   end
+
   defp format_datetime_value(_), do: ""
 end

@@ -28,7 +28,7 @@ defmodule TodoAppUi.Pagination do
       </.pagination>
   """
   use TodoAppUi, :component
-  
+
   import TodoAppUi.Icon
 
   @doc """
@@ -238,12 +238,12 @@ defmodule TodoAppUi.Pagination do
     </span>
     """
   end
-  
+
   @doc """
   The first page button component.
-  
+
   ## Examples
-  
+
       <.pagination_first phx-click="navigate" phx-value-page={1} />
   """
   attr :class, :any, default: nil
@@ -256,12 +256,12 @@ defmodule TodoAppUi.Pagination do
     </.pagination_link>
     """
   end
-  
+
   @doc """
   The last page button component.
-  
+
   ## Examples
-  
+
       <.pagination_last phx-click="navigate" phx-value-page={@total_pages} />
   """
   attr :class, :any, default: nil

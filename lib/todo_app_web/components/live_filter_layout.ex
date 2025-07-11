@@ -4,17 +4,17 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
   Provides a modern, shadcn-inspired layout with header, toolbar, and content areas.
   """
   use Phoenix.Component
+
   use Phoenix.VerifiedRoutes,
     endpoint: TodoAppWeb.Endpoint,
     router: TodoAppWeb.Router,
     statics: TodoAppWeb.static_paths()
-    
+
   import TodoAppUi.Icon
   import TodoAppUi.Badge
-  
+
   # Import Phoenix.Component for attrs and slots
   import Phoenix.Component
-  
 
   @doc """
   Renders the main layout wrapper with header navigation.
@@ -29,12 +29,12 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
     ~H"""
     <div class={["min-h-screen bg-background", @class]}>
       <.header current_tab={@current_tab} />
-      
+
       <main class="container mx-auto px-4 py-6 space-y-4">
         <div class="rounded-lg border bg-card">
           {render_slot(@toolbar)}
         </div>
-        
+
         <div class="rounded-lg border bg-card">
           {render_slot(@content)}
         </div>
@@ -58,24 +58,36 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
               </div>
               <span class="hidden sm:inline-block">LiveFilter</span>
             </.link>
-            
+
             <nav class="flex items-center h-full">
-              <.link navigate="/todos" class={[
-                "inline-flex items-center justify-center whitespace-nowrap rounded-none px-3 py-1.5 text-sm font-medium ring-offset-background transition-all h-full border-b-2",
-                if(@current_tab == "table", do: "border-primary text-foreground", else: "border-transparent text-muted-foreground hover:text-foreground")
-              ]}>
-                <.icon name="hero-table-cells" class="w-4 h-4 mr-2" />
-                Table
+              <.link
+                navigate="/todos"
+                class={[
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-none px-3 py-1.5 text-sm font-medium ring-offset-background transition-all h-full border-b-2",
+                  if(@current_tab == "table",
+                    do: "border-primary text-foreground",
+                    else: "border-transparent text-muted-foreground hover:text-foreground"
+                  )
+                ]}
+              >
+                <.icon name="hero-table-cells" class="w-4 h-4 mr-2" /> Table
               </.link>
-              <a href="https://hexdocs.pm/livefilter" target="_blank" class="inline-flex items-center justify-center whitespace-nowrap rounded-none px-3 py-1.5 text-sm font-medium ring-offset-background transition-all h-full text-muted-foreground hover:text-foreground no-underline">
-                <.icon name="hero-document-text" class="w-4 h-4 mr-2" />
-                Docs
+              <a
+                href="https://hexdocs.pm/livefilter"
+                target="_blank"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-none px-3 py-1.5 text-sm font-medium ring-offset-background transition-all h-full text-muted-foreground hover:text-foreground no-underline"
+              >
+                <.icon name="hero-document-text" class="w-4 h-4 mr-2" /> Docs
               </a>
             </nav>
           </div>
-          
+
           <div class="flex items-center gap-4">
-            <a href="https://github.com/yourusername/livefilter" target="_blank" class="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <a
+              href="https://github.com/yourusername/livefilter"
+              target="_blank"
+              class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
               GitHub
             </a>
           </div>
@@ -104,7 +116,7 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
             {render_slot(@quick_filters)}
           </div>
         </div>
-        
+
         <%!-- View controls - fixed position on the right --%>
         <div :if={@view_controls != []} class="flex-shrink-0">
           {render_slot(@view_controls)}
