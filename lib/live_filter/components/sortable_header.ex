@@ -5,8 +5,8 @@ defmodule LiveFilter.Components.SortableHeader do
 
   ## Examples
 
-      <.sortable_header 
-        field={:due_date} 
+      <.sortable_header
+        field={:due_date}
         label="Due Date"
         current_sort={@current_sort}
         phx-click="sort_by"

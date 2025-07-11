@@ -18,15 +18,15 @@ defmodule LiveFilter.EventRouter do
         case LiveFilter.EventRouter.parse_filter_event(event) do
           {:ok, :status, :changed} ->
             # Handle status filter change
-            
+
           {:ok, :date_range, :cleared} ->
             # Handle date range clear
-            
+
           {:error, :no_match} ->
             # Not a filter event, handle normally
         end
       end
-      
+
       # Or use the router function
       def handle_event(event, params, socket) do
         LiveFilter.EventRouter.route_event(event, params,
@@ -54,14 +54,14 @@ defmodule LiveFilter.EventRouter do
       # Default pattern: "filter_<field>_<action>"
       parse_filter_event("filter_status_changed")
       #=> {:ok, :status, :changed}
-      
+
       parse_filter_event("filter_due_date_cleared")
       #=> {:ok, :due_date, :cleared}
-      
+
       # Custom pattern: "quick_<field>_<action>"
       parse_filter_event("quick_project_selected", prefix: "quick_")
       #=> {:ok, :project, :selected}
-      
+
       # Unknown event
       parse_filter_event("something_else")
       #=> {:error, :no_match}
@@ -158,7 +158,7 @@ defmodule LiveFilter.EventRouter do
 
       build_event_name(:status, :changed)
       #=> "filter_status_changed"
-      
+
       build_event_name(:due_date, :selected, prefix: "quick_")
       #=> "quick_due_date_selected"
   """
@@ -185,11 +185,11 @@ defmodule LiveFilter.EventRouter do
       # Toggle event: %{"toggle" => "active"}
       extract_event_value(%{"toggle" => "active"}, type: :toggle)
       #=> {:toggle, "active"}
-      
+
       # Select event: %{"select" => "urgent"}
       extract_event_value(%{"select" => "urgent"}, type: :single)
       #=> {:select, "urgent"}
-      
+
       # Clear event: %{"clear" => true}
       extract_event_value(%{"clear" => true})
       #=> {:clear, true}
@@ -251,7 +251,7 @@ defmodule LiveFilter.EventRouter do
           type: :multi_select,
           apply_fn: &apply_filters/1
         )
-        
+
         handler.(params, socket)
       end
   """

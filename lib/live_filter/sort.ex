@@ -25,7 +25,7 @@ defmodule LiveFilter.Sort do
 
       iex> LiveFilter.Sort.new(:due_date, :desc)
       %LiveFilter.Sort{field: :due_date, direction: :desc}
-      
+
       iex> LiveFilter.Sort.new("created_at")
       %LiveFilter.Sort{field: "created_at", direction: :asc}
   """

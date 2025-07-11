@@ -9,7 +9,7 @@ defmodule LiveFilter.UrlUtils do
   @doc """
   Flattens nested parameter maps into a flat structure suitable for URL encoding.
 
-  Converts nested maps like `%{"filters" => %{"status" => %{"operator" => "in"}}}` 
+  Converts nested maps like `%{"filters" => %{"status" => %{"operator" => "in"}}}`
   into flat parameters like `[{"filters[status][operator]", "in"}]`.
 
   ## Examples

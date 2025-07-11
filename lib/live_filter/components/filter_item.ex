@@ -339,9 +339,7 @@ defmodule LiveFilter.Components.FilterItem do
 
   @impl true
   def handle_event("value_changed", %{"value" => value}, socket) do
-    IO.inspect(value, label: "Raw value from input")
     parsed_value = parse_value(value, socket.assigns.filter.type)
-    IO.inspect(parsed_value, label: "Parsed value")
     filter = %{socket.assigns.filter | value: parsed_value}
 
     # Send to parent LiveView

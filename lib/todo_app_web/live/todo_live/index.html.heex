@@ -167,7 +167,7 @@
             </TodoAppUi.Table.table_head>
           </TodoAppUi.Table.table_row>
         </TodoAppUi.Table.table_header>
-        <TodoAppUi.Table.table_body>
+        <TodoAppUi.Table.table_body id="todos-stream" phx-update="stream">
           <TodoAppUi.Table.table_row
             :for={{id, todo} <- @streams.todos}
             id={id}

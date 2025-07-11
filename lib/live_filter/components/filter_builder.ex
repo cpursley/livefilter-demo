@@ -5,7 +5,7 @@ defmodule LiveFilter.Components.FilterBuilder do
   Accepts:
   - filter_group: The FilterGroup struct
   - field_options: List of {field, label, type, opts} tuples
-  - field_value_options: Map of field => options list for enum/array fields  
+  - field_value_options: Map of field => options list for enum/array fields
   - ui_components: Optional UI component configuration
   """
   use Phoenix.LiveComponent
@@ -107,7 +107,6 @@ defmodule LiveFilter.Components.FilterBuilder do
 
   @impl true
   def handle_event("apply_filters", _params, socket) do
-    IO.inspect(socket.assigns.filter_group, label: "FilterBuilder applying filters")
     send(self(), {:apply_filters, socket.assigns.filter_group})
     {:noreply, socket}
   end

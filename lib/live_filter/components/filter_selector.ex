@@ -97,7 +97,7 @@ defmodule LiveFilter.Components.FilterSelector do
               :for={filter <- @inactive_filters}
               on-select={
                 Phoenix.LiveView.JS.push("select_filter",
-                  value: %{field: elem(filter, 0)},
+                  value: %{field: to_string(elem(filter, 0))},
                   target: @myself
                 )
               }
@@ -124,6 +124,7 @@ defmodule LiveFilter.Components.FilterSelector do
   @impl true
   def handle_event("select_filter", %{"field" => field_string}, socket) do
     field = String.to_existing_atom(field_string)
+    # Send to parent LiveView, not to self (the LiveComponent)
     send(self(), {:filter_selected, field})
     {:noreply, socket}
   end

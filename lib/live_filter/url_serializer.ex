@@ -131,8 +131,8 @@ defmodule LiveFilter.UrlSerializer do
       %{"field" => field, "direction" => direction} ->
         # Single sort format
         Sort.new(
-          String.to_existing_atom(field),
-          String.to_existing_atom(direction)
+          safe_to_atom(field),
+          safe_to_atom(direction)
         )
 
       sort_map when is_map(sort_map) ->
@@ -141,8 +141,8 @@ defmodule LiveFilter.UrlSerializer do
         |> Enum.sort_by(fn {index, _} -> String.to_integer(index) end)
         |> Enum.map(fn {_index, %{"field" => field, "direction" => direction}} ->
           Sort.new(
-            String.to_existing_atom(field),
-            String.to_existing_atom(direction)
+            safe_to_atom(field),
+            safe_to_atom(direction)
           )
         end)
 
@@ -229,7 +229,7 @@ defmodule LiveFilter.UrlSerializer do
   end
 
   defp parse_filter_entry({field_str, value}) when is_map(value) do
-    field = String.to_existing_atom(field_str)
+    field = safe_to_atom(field_str)
 
     cond do
       # Range filter with start/end
@@ -267,7 +267,7 @@ defmodule LiveFilter.UrlSerializer do
   end
 
   defp parse_filter_entry({field_str, values}) when is_list(values) do
-    field = String.to_existing_atom(field_str)
+    field = safe_to_atom(field_str)
 
     %LiveFilter.Filter{
       field: field,
@@ -278,7 +278,7 @@ defmodule LiveFilter.UrlSerializer do
   end
 
   defp parse_filter_entry({field_str, value}) do
-    field = String.to_existing_atom(field_str)
+    field = safe_to_atom(field_str)
 
     # Try to infer the type based on the field
     type = infer_type(field, value)
@@ -294,7 +294,7 @@ defmodule LiveFilter.UrlSerializer do
   defp parse_operator(nil, default), do: default
 
   defp parse_operator(operator_str, _default) when is_binary(operator_str) do
-    String.to_existing_atom(operator_str)
+    safe_to_atom(operator_str)
   end
 
   defp parse_operator(_, default), do: default
@@ -304,7 +304,7 @@ defmodule LiveFilter.UrlSerializer do
   defp parse_type(nil, default), do: default
 
   defp parse_type(type_str, _default) when is_binary(type_str) do
-    String.to_existing_atom(type_str)
+    safe_to_atom(type_str)
   end
 
   defp parse_type(_, default), do: default
@@ -319,10 +319,15 @@ defmodule LiveFilter.UrlSerializer do
   defp deserialize_value("false"), do: false
 
   defp deserialize_value(value) when is_binary(value) do
-    # Try to parse as date
-    case Date.from_iso8601(value) do
+    # Try to parse as datetime first (more specific)
+    with {:error, _} <- DateTime.from_iso8601(value),
+         # Then try date
+         {:error, _} <- Date.from_iso8601(value) do
+      # If neither work, return the original string
+      value
+    else
+      {:ok, datetime, _offset} -> datetime
       {:ok, date} -> date
-      {:error, _} -> value
     end
   end
 
@@ -342,6 +347,15 @@ defmodule LiveFilter.UrlSerializer do
   defp deep_put(map, [key | rest], value) do
     sub_map = Map.get(map, key, %{})
     Map.put(map, key, deep_put(sub_map, rest, value))
+  end
+
+  # Safely convert string to atom, using String.to_atom if atom doesn't exist
+  defp safe_to_atom(string) when is_binary(string) do
+    try do
+      String.to_existing_atom(string)
+    rescue
+      ArgumentError -> String.to_atom(string)
+    end
   end
 
   # Helper to convert indexed maps back to lists

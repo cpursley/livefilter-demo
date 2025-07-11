@@ -70,7 +70,6 @@ defmodule LiveFilter.Components.SearchSelect do
             size={@size}
             class={[
               @class,
-              length(@selected) > 0 && "border-dashed",
               "gap-1 items-center"
             ]}
             data-selected={inspect(@selected)}

@@ -84,7 +84,7 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
 
           <div class="flex items-center gap-4">
             <a
-              href="https://github.com/yourusername/livefilter"
+              href="https://github.com/cpursley/livefilter"
               target="_blank"
               class="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >

@@ -67,17 +67,12 @@ defmodule LiveFilter.Components.ColumnSettings do
     column_atom = String.to_existing_atom(column_str)
     current_visible = socket.assigns.visible_columns
 
-    IO.inspect(column_atom, label: "Toggling column")
-    IO.inspect(current_visible, label: "Current visible")
-
     new_visible =
       if column_atom in current_visible do
         List.delete(current_visible, column_atom)
       else
         current_visible ++ [column_atom]
       end
-
-    IO.inspect(new_visible, label: "New visible after toggle")
 
     send(self(), {:column_visibility_changed, new_visible})
     {:noreply, socket}

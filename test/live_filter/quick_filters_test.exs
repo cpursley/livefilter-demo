@@ -28,6 +28,11 @@ defmodule LiveFilter.QuickFiltersTest do
       assert is_nil(QuickFilters.search_filter("   "))
     end
 
+    test "returns nil for nil input" do
+      assert is_nil(QuickFilters.search_filter(nil))
+      assert is_nil(QuickFilters.search_filter(nil, field: :custom))
+    end
+
     test "respects minimum length" do
       assert is_nil(QuickFilters.search_filter("ab", min_length: 3))
       assert QuickFilters.search_filter("abc", min_length: 3)
@@ -130,6 +135,34 @@ defmodule LiveFilter.QuickFiltersTest do
       else
         assert is_nil(result)
       end
+    end
+
+    test "handles datetime ranges with proper type" do
+      # Test UTC datetime range
+      datetime_range = {~U[2025-07-10 00:00:00Z], ~U[2025-07-19 23:59:59Z]}
+      filter = QuickFilters.date_range_filter(:inserted_at, datetime_range, type: :utc_datetime)
+
+      assert filter.field == :inserted_at
+      assert filter.operator == :between
+      assert filter.value == datetime_range
+      assert filter.type == :utc_datetime
+    end
+
+    test "handles datetime type parameter correctly" do
+      # Test that different datetime types are preserved
+      date_range = {~D[2025-07-10], ~D[2025-07-19]}
+
+      # As date type
+      date_filter = QuickFilters.date_range_filter(:field, date_range, type: :date)
+      assert date_filter.type == :date
+
+      # As datetime type
+      datetime_filter = QuickFilters.date_range_filter(:field, date_range, type: :datetime)
+      assert datetime_filter.type == :datetime
+
+      # As utc_datetime type
+      utc_filter = QuickFilters.date_range_filter(:field, date_range, type: :utc_datetime)
+      assert utc_filter.type == :utc_datetime
     end
   end
 
@@ -318,4 +351,426 @@ defmodule LiveFilter.QuickFiltersTest do
 
   # Example handlers are documented but not unit tested here
   # since they require proper LiveView socket setup
+
+  describe "extract_search_query/2" do
+    test "extracts search query from filter group" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :_search, operator: :custom, value: "test query"}
+        ]
+      }
+
+      assert QuickFilters.extract_search_query(filter_group) == "test query"
+    end
+
+    test "returns nil when no search filter exists" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :equals, value: :active}
+        ]
+      }
+
+      assert is_nil(QuickFilters.extract_search_query(filter_group))
+    end
+
+    test "extracts from custom field" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :title, operator: :contains, value: "search term"}
+        ]
+      }
+
+      assert QuickFilters.extract_search_query(filter_group, field: :title) == "search term"
+    end
+
+    test "respects operator option" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :_search, operator: :contains, value: "partial"},
+          %LiveFilter.Filter{field: :_search, operator: :custom, value: "full"}
+        ]
+      }
+
+      assert QuickFilters.extract_search_query(filter_group, operator: :contains) == "partial"
+    end
+
+    test "returns nil for empty filter group" do
+      assert is_nil(QuickFilters.extract_search_query(%LiveFilter.FilterGroup{}))
+    end
+  end
+
+  describe "extract_multi_select/2" do
+    test "extracts multiple values from :in operator" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :in, value: [:active, :pending]}
+        ]
+      }
+
+      assert QuickFilters.extract_multi_select(filter_group, :status) == [:active, :pending]
+    end
+
+    test "extracts single value from :equals operator as list" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :equals, value: :active}
+        ]
+      }
+
+      assert QuickFilters.extract_multi_select(filter_group, :status) == [:active]
+    end
+
+    test "returns empty list when field not found" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :other, operator: :equals, value: :value}
+        ]
+      }
+
+      assert QuickFilters.extract_multi_select(filter_group, :status) == []
+    end
+
+    test "respects single_value option" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :equals, value: :active}
+        ]
+      }
+
+      assert QuickFilters.extract_multi_select(filter_group, :status, single_value: true) ==
+               :active
+    end
+
+    test "handles empty value" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :in, value: []}
+        ]
+      }
+
+      assert QuickFilters.extract_multi_select(filter_group, :status) == []
+    end
+  end
+
+  describe "extract_date_range/2" do
+    test "extracts date range from :between operator" do
+      range = {~D[2025-01-01], ~D[2025-01-31]}
+
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :due_date, operator: :between, value: range}
+        ]
+      }
+
+      assert QuickFilters.extract_date_range(filter_group, :due_date) == range
+    end
+
+    test "extracts single date from :equals operator" do
+      date = ~D[2025-01-15]
+
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :due_date, operator: :equals, value: date}
+        ]
+      }
+
+      assert QuickFilters.extract_date_range(filter_group, :due_date) == date
+    end
+
+    test "returns nil when field not found" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :created_at, operator: :between, value: {nil, nil}}
+        ]
+      }
+
+      assert is_nil(QuickFilters.extract_date_range(filter_group, :due_date))
+    end
+
+    test "handles date time values" do
+      range = {~U[2025-01-01 00:00:00Z], ~U[2025-01-31 23:59:59Z]}
+
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :created_at, operator: :between, value: range}
+        ]
+      }
+
+      assert QuickFilters.extract_date_range(filter_group, :created_at) == range
+    end
+  end
+
+  describe "extract_boolean/2" do
+    test "extracts true value" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :is_urgent, operator: :equals, value: true}
+        ]
+      }
+
+      assert QuickFilters.extract_boolean(filter_group, :is_urgent) == true
+    end
+
+    test "extracts false value" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :is_active, operator: :equals, value: false}
+        ]
+      }
+
+      assert QuickFilters.extract_boolean(filter_group, :is_active) == false
+    end
+
+    test "handles :is_true operator" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :is_urgent, operator: :is_true, value: true}
+        ]
+      }
+
+      assert QuickFilters.extract_boolean(filter_group, :is_urgent) == true
+    end
+
+    test "handles :is_false operator" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :is_archived, operator: :is_false, value: false}
+        ]
+      }
+
+      assert QuickFilters.extract_boolean(filter_group, :is_archived) == false
+    end
+
+    test "returns nil when field not found" do
+      filter_group = %LiveFilter.FilterGroup{filters: []}
+
+      assert is_nil(QuickFilters.extract_boolean(filter_group, :is_urgent))
+    end
+
+    test "respects default value option" do
+      filter_group = %LiveFilter.FilterGroup{filters: []}
+
+      assert QuickFilters.extract_boolean(filter_group, :is_active, default: false) == false
+    end
+  end
+
+  describe "extract_numeric/2" do
+    test "extracts integer value" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :age, operator: :equals, value: 25}
+        ]
+      }
+
+      assert QuickFilters.extract_numeric(filter_group, :age) == 25
+    end
+
+    test "extracts float value" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :price, operator: :greater_than, value: 99.99}
+        ]
+      }
+
+      assert QuickFilters.extract_numeric(filter_group, :price) == 99.99
+    end
+
+    test "extracts range from :between operator" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :score, operator: :between, value: {80, 100}}
+        ]
+      }
+
+      assert QuickFilters.extract_numeric(filter_group, :score) == {80, 100}
+    end
+
+    test "returns nil when field not found" do
+      filter_group = %LiveFilter.FilterGroup{filters: []}
+
+      assert is_nil(QuickFilters.extract_numeric(filter_group, :count))
+    end
+  end
+
+  describe "extract_array/2" do
+    test "extracts array value" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :tags, operator: :contains_any, value: ["urgent", "bug"]}
+        ]
+      }
+
+      assert QuickFilters.extract_array(filter_group, :tags) == ["urgent", "bug"]
+    end
+
+    test "returns empty list when field not found" do
+      filter_group = %LiveFilter.FilterGroup{filters: []}
+
+      assert QuickFilters.extract_array(filter_group, :tags) == []
+    end
+
+    test "respects default value option" do
+      filter_group = %LiveFilter.FilterGroup{filters: []}
+
+      assert QuickFilters.extract_array(filter_group, :categories, default: ["misc"]) == ["misc"]
+    end
+  end
+
+  describe "extract_all/2" do
+    test "extracts all standard filter types" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :_search, operator: :custom, value: "search term"},
+          %LiveFilter.Filter{field: :status, operator: :in, value: [:active, :pending]},
+          %LiveFilter.Filter{field: :assigned_to, operator: :equals, value: "john_doe"},
+          %LiveFilter.Filter{
+            field: :due_date,
+            operator: :between,
+            value: {~D[2025-01-01], ~D[2025-01-31]}
+          },
+          %LiveFilter.Filter{field: :is_urgent, operator: :equals, value: true},
+          %LiveFilter.Filter{field: :priority, operator: :equals, value: 5},
+          %LiveFilter.Filter{field: :tags, operator: :contains_any, value: ["bug", "feature"]}
+        ]
+      }
+
+      extractors = [
+        search_query: &QuickFilters.extract_search_query/1,
+        selected_statuses: fn fg -> QuickFilters.extract_multi_select(fg, :status) end,
+        selected_assignees: fn fg -> QuickFilters.extract_multi_select(fg, :assigned_to) end,
+        date_range: fn fg -> QuickFilters.extract_date_range(fg, :due_date) end,
+        is_urgent: fn fg -> QuickFilters.extract_boolean(fg, :is_urgent) end,
+        priority: fn fg -> QuickFilters.extract_numeric(fg, :priority) end,
+        tags: fn fg -> QuickFilters.extract_array(fg, :tags) end
+      ]
+
+      result = QuickFilters.extract_all(filter_group, extractors)
+
+      assert result == %{
+               search_query: "search term",
+               selected_statuses: [:active, :pending],
+               selected_assignees: ["john_doe"],
+               date_range: {~D[2025-01-01], ~D[2025-01-31]},
+               is_urgent: true,
+               priority: 5,
+               tags: ["bug", "feature"]
+             }
+    end
+
+    test "handles missing values gracefully" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :equals, value: :active}
+        ]
+      }
+
+      extractors = [
+        search_query: &QuickFilters.extract_search_query/1,
+        selected_statuses: fn fg -> QuickFilters.extract_multi_select(fg, :status) end,
+        is_urgent: fn fg -> QuickFilters.extract_boolean(fg, :is_urgent, default: false) end
+      ]
+
+      result = QuickFilters.extract_all(filter_group, extractors)
+
+      assert result == %{
+               search_query: nil,
+               selected_statuses: [:active],
+               is_urgent: false
+             }
+    end
+
+    test "applies to socket assigns when socket provided" do
+      socket = %{assigns: %{existing: "value"}}
+
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :_search, operator: :custom, value: "test"}
+        ]
+      }
+
+      extractors = [
+        search_query: &QuickFilters.extract_search_query/1
+      ]
+
+      result = QuickFilters.extract_all(filter_group, extractors, socket: socket)
+
+      assert result.assigns.search_query == "test"
+      assert result.assigns.existing == "value"
+    end
+  end
+
+  describe "extract_optional_filters/2" do
+    test "extracts filters not in exclusion list" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :equals, value: :active},
+          %LiveFilter.Filter{field: :project, operator: :equals, value: "phoenix"},
+          %LiveFilter.Filter{field: :tags, operator: :contains_any, value: ["bug", "urgent"]},
+          %LiveFilter.Filter{field: :complexity, operator: :greater_than, value: 5}
+        ]
+      }
+
+      # Exclude standard filters
+      excluded_fields = [:status, :assigned_to, :due_date, :is_urgent, :_search]
+
+      result = QuickFilters.extract_optional_filters(filter_group, excluded_fields)
+
+      assert result == %{
+               active_optional_filters: [:project, :tags, :complexity],
+               optional_filter_values: %{
+                 project: "phoenix",
+                 tags: ["bug", "urgent"],
+                 complexity: 5
+               }
+             }
+    end
+
+    test "returns empty when no optional filters" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :status, operator: :equals, value: :active},
+          %LiveFilter.Filter{field: :_search, operator: :custom, value: "test"}
+        ]
+      }
+
+      excluded_fields = [:status, :_search]
+
+      result = QuickFilters.extract_optional_filters(filter_group, excluded_fields)
+
+      assert result == %{
+               active_optional_filters: [],
+               optional_filter_values: %{}
+             }
+    end
+
+    test "preserves order of filters" do
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :complexity, operator: :equals, value: 3},
+          %LiveFilter.Filter{field: :project, operator: :equals, value: "test"},
+          %LiveFilter.Filter{field: :tags, operator: :contains_any, value: ["feature"]}
+        ]
+      }
+
+      result = QuickFilters.extract_optional_filters(filter_group, [])
+
+      assert result.active_optional_filters == [:complexity, :project, :tags]
+    end
+
+    test "applies to socket when provided" do
+      socket = %{assigns: %{existing: "value"}}
+
+      filter_group = %LiveFilter.FilterGroup{
+        filters: [
+          %LiveFilter.Filter{field: :project, operator: :equals, value: "phoenix"}
+        ]
+      }
+
+      result = QuickFilters.extract_optional_filters(filter_group, [:status], socket: socket)
+
+      assert result.assigns.active_optional_filters == [:project]
+      assert result.assigns.optional_filter_values == %{project: "phoenix"}
+      assert result.assigns.existing == "value"
+    end
+  end
 end

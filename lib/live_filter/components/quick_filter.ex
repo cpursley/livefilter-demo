@@ -164,6 +164,7 @@ defmodule LiveFilter.Components.QuickFilter do
       icon={@icon}
       size="sm"
       timestamp_type={@type}
+      field={@field}
       enabled_presets={[]}
     />
     """

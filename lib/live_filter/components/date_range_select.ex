@@ -124,7 +124,7 @@ defmodule LiveFilter.Components.DateRangeSelect do
           size={@size}
           class={[
             @class,
-            @value && "border-dashed"
+            "gap-1 items-center"
           ]}
           phx-click="show_calendar"
           phx-target={@myself}
@@ -158,7 +158,7 @@ defmodule LiveFilter.Components.DateRangeSelect do
               size={@size}
               class={[
                 @class,
-                @value && "border-dashed"
+                "gap-1 items-center"
               ]}
             >
               <div class="flex items-center gap-1">
@@ -425,7 +425,16 @@ defmodule LiveFilter.Components.DateRangeSelect do
   def handle_event("select_preset", %{"preset" => preset}, socket) do
     # Convert preset to appropriate timestamp type
     date_range = LiveFilter.DateUtils.parse_date_range(preset, socket.assigns.timestamp_type)
-    send(self(), {:date_range_selected, date_range})
+
+    # Send message with field if provided, otherwise just the date range
+    message =
+      if socket.assigns[:field] do
+        {:date_range_selected, socket.assigns.field, date_range}
+      else
+        {:date_range_selected, date_range}
+      end
+
+    send(self(), message)
     {:noreply, socket}
   end
 
@@ -482,7 +491,15 @@ defmodule LiveFilter.Components.DateRangeSelect do
           socket.assigns.timestamp_type
         )
 
-      send(self(), {:date_range_selected, date_range})
+      # Send message with field if provided, otherwise just the date range
+      message =
+        if socket.assigns[:field] do
+          {:date_range_selected, socket.assigns.field, date_range}
+        else
+          {:date_range_selected, date_range}
+        end
+
+      send(self(), message)
 
       {:noreply, assign(socket, :show_calendar, false)}
     end
@@ -490,7 +507,15 @@ defmodule LiveFilter.Components.DateRangeSelect do
 
   @impl true
   def handle_event("clear", _, socket) do
-    send(self(), {:date_range_selected, nil})
+    # Send message with field if provided, otherwise just the date range
+    message =
+      if socket.assigns[:field] do
+        {:date_range_selected, socket.assigns.field, nil}
+      else
+        {:date_range_selected, nil}
+      end
+
+    send(self(), message)
     {:noreply, socket}
   end
 
@@ -560,6 +585,23 @@ defmodule LiveFilter.Components.DateRangeSelect do
   defp to_display_date(%Date{} = date), do: date
   defp to_display_date(%DateTime{} = datetime), do: DateTime.to_date(datetime)
   defp to_display_date(%NaiveDateTime{} = ndt), do: NaiveDateTime.to_date(ndt)
+
+  defp to_display_date(date_string) when is_binary(date_string) do
+    # Handle ISO8601 datetime strings
+    case DateTime.from_iso8601(date_string) do
+      {:ok, datetime, _} ->
+        DateTime.to_date(datetime)
+
+      {:error, _} ->
+        # Try parsing as date
+        case Date.from_iso8601(date_string) do
+          {:ok, date} -> date
+          {:error, _} -> nil
+        end
+    end
+  end
+
+  defp to_display_date(_), do: nil
 
   defp calendar_weeks(month) do
     first_day = %{month | day: 1}

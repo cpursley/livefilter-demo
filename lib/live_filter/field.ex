@@ -10,7 +10,7 @@ defprotocol LiveFilter.Field do
 
       defmodule MyApp.PriorityField do
         defstruct [:levels, :default]
-        
+
         def new(opts \\ []) do
           %__MODULE__{
             levels: Keyword.get(opts, :levels, [:low, :medium, :high, :urgent]),
@@ -18,7 +18,7 @@ defprotocol LiveFilter.Field do
           }
         end
       end
-      
+
       defimpl LiveFilter.Field, for: MyApp.PriorityField do
         def to_filter_value(%{levels: levels}, ui_value) do
           # Convert UI selection to filter value
@@ -29,7 +29,7 @@ defprotocol LiveFilter.Field do
             _ -> nil
           end
         end
-        
+
         def to_ui_value(_, filter_value) do
           # Convert filter value back to UI representation
           case filter_value do
@@ -39,9 +39,9 @@ defprotocol LiveFilter.Field do
             _ -> nil
           end
         end
-        
+
         def default_operator(_), do: :in
-        
+
         def validate(%{levels: levels}, value) do
           if Enum.all?(value, &(&1 in levels)) do
             :ok
@@ -49,11 +49,11 @@ defprotocol LiveFilter.Field do
             {:error, "Invalid priority level"}
           end
         end
-        
+
         def operators(_) do
           [:in, :not_in, :equals]
         end
-        
+
         def ui_component(_) do
           :custom_priority_selector
         end

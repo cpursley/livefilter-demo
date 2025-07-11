@@ -10,13 +10,13 @@ defmodule LiveFilter.UIState do
 
       # Use default converter
       filters = LiveFilter.UIState.ui_to_filters(ui_state)
-      
+
       # Use custom converter
-      filters = LiveFilter.UIState.ui_to_filters(ui_state, 
+      filters = LiveFilter.UIState.ui_to_filters(ui_state,
         converter: &MyApp.custom_converter/2,
         fields: MyApp.field_config()
       )
-      
+
       # Extract values from filters back to UI
       search_query = LiveFilter.UIState.extract_filter_value(filters, :_search)
       selected_statuses = LiveFilter.UIState.extract_filter_value(filters, :status,
@@ -57,7 +57,7 @@ defmodule LiveFilter.UIState do
         selected_values: %{status: [:pending, :in_progress]},
         date_ranges: %{due_date: {~D[2025-01-01], ~D[2025-01-31]}}
       }
-      
+
       filters = LiveFilter.UIState.ui_to_filters(ui_state,
         fields: [
           {:status, :enum, default_op: :in},
@@ -94,13 +94,13 @@ defmodule LiveFilter.UIState do
 
       # Extract search query
       query = extract_filter_value(filters, :_search)
-      
+
       # Extract multi-select with specific operator
-      statuses = extract_filter_value(filters, :status, 
+      statuses = extract_filter_value(filters, :status,
         operator: :in,
         default: []
       )
-      
+
       # Transform extracted value
       assignee_names = extract_filter_value(filters, :assigned_to,
         transform: fn ids -> Enum.map(ids, &Users.get_name/1) end

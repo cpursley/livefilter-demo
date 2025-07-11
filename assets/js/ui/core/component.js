@@ -125,7 +125,6 @@ class Component {
 
   // Handle client commands
   onClientCommand(event) {
-    console.log(event);
     const { command, params } = event.detail;
     if (command) {
       this.handleCommand(command, params);

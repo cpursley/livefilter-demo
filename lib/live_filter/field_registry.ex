@@ -109,7 +109,7 @@ defmodule LiveFilter.FieldRegistry do
       # Simple field
       registry
       |> add_field(:title, :string, label: "Title")
-      
+
       # Enum field with options
       registry
       |> add_field(:status, :enum,
@@ -118,7 +118,7 @@ defmodule LiveFilter.FieldRegistry do
         default_operator: :in,
         multiple: true
       )
-      
+
       # Custom field type
       registry
       |> add_field(:priority, MyApp.PriorityField.new(), label: "Priority")
@@ -298,7 +298,7 @@ defmodule LiveFilter.FieldRegistry do
         ]),
         {:custom, MyCustomField.new(), label: "Custom Field"}
       ]
-      
+
       registry = LiveFilter.FieldRegistry.from_fields(fields)
   """
   def from_fields(field_definitions) when is_list(field_definitions) do

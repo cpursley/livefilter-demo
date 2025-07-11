@@ -110,6 +110,91 @@ defmodule TodoAppWeb.TodoLive.IntegrationTest do
     end
   end
 
+  describe "optional filters" do
+    test "datetime field filter with date range via URL", %{conn: conn} do
+      # Create todos with different creation dates using Repo.insert! to control timestamps
+      alias TodoApp.{Repo, Todos.Todo}
+
+      old_todo =
+        Repo.insert!(%Todo{
+          title: "Old Todo Created Jan",
+          status: :pending,
+          inserted_at: ~U[2025-01-01 10:00:00Z],
+          updated_at: ~U[2025-01-01 10:00:00Z]
+        })
+
+      recent_todo =
+        Repo.insert!(%Todo{
+          title: "Recent Todo Created July",
+          status: :pending,
+          inserted_at: ~U[2025-07-15 10:00:00Z],
+          updated_at: ~U[2025-07-15 10:00:00Z]
+        })
+
+      future_todo =
+        Repo.insert!(%Todo{
+          title: "Future Todo Created Dec",
+          status: :pending,
+          inserted_at: ~U[2025-12-01 10:00:00Z],
+          updated_at: ~U[2025-12-01 10:00:00Z]
+        })
+
+      # Load with inserted_at date range filter in URL
+      # Using between operator for datetime range
+      {:ok, _view, html} =
+        live(
+          conn,
+          ~p"/todos?filters[inserted_at][operator]=between&filters[inserted_at][type]=utc_datetime&filters[inserted_at][start]=2025-07-10T00:00:00Z&filters[inserted_at][end]=2025-07-20T23:59:59Z"
+        )
+
+      # Check if any filter indicator is present
+      # Should only show the recent todo
+      assert html =~ recent_todo.title
+      refute html =~ old_todo.title
+      refute html =~ future_todo.title
+    end
+
+    test "datetime field filter properly builds with between operator", %{conn: conn} do
+      # Create test todos with controlled timestamps
+      alias TodoApp.{Repo, Todos.Todo}
+
+      todo1 =
+        Repo.insert!(%Todo{
+          title: "Todo 1",
+          status: :pending,
+          inserted_at: ~U[2025-07-15 10:00:00Z],
+          updated_at: ~U[2025-07-15 10:00:00Z]
+        })
+
+      todo2 =
+        Repo.insert!(%Todo{
+          title: "Todo 2",
+          status: :pending,
+          inserted_at: ~U[2025-08-15 10:00:00Z],
+          updated_at: ~U[2025-08-15 10:00:00Z]
+        })
+
+      # Start with base page
+      {:ok, view, _html} = live(conn, ~p"/todos")
+
+      # Simulate adding an optional datetime filter with a range value
+      # This tests that our build_optional_filter function correctly uses :between operator
+      send(view.pid, {:filter_selected, :inserted_at})
+
+      send(
+        view.pid,
+        {:quick_filter_changed, :inserted_at,
+         {~U[2025-07-01 00:00:00Z], ~U[2025-07-31 23:59:59Z]}}
+      )
+
+      html = render(view)
+
+      # Should show todo1 but not todo2
+      assert html =~ todo1.title
+      refute html =~ todo2.title
+    end
+  end
+
   describe "data integrity" do
     test "filter results match database query", %{conn: conn} do
       # Create test data

@@ -64,7 +64,10 @@ defmodule LiveFilter.QuickFilters do
 
   Returns nil if query is empty or below min_length.
   """
-  def search_filter(query, opts \\ []) when is_binary(query) do
+  def search_filter(query, opts \\ [])
+  def search_filter(nil, _opts), do: nil
+
+  def search_filter(query, opts) when is_binary(query) do
     field = Keyword.get(opts, :field, :_search)
     operator = Keyword.get(opts, :operator, :custom)
     type = Keyword.get(opts, :type, :string)
@@ -410,5 +413,282 @@ defmodule LiveFilter.QuickFilters do
 
   def example_multi_select_handler(socket, field, values, :replace) do
     Phoenix.Component.assign(socket, field, values)
+  end
+
+  # Extraction Functions for Filter State Recovery
+
+  @doc """
+  Extract search query from a filter group.
+
+  Looks for search filters and returns the query value.
+
+  ## Options
+
+    * `:field` - Field to look for (default: `:_search`)
+    * `:operator` - Operator to match (default: any)
+
+  ## Examples
+
+      filter_group = %FilterGroup{
+        filters: [
+          %Filter{field: :_search, operator: :custom, value: "search term"}
+        ]
+      }
+      
+      QuickFilters.extract_search_query(filter_group)
+      #=> "search term"
+  """
+  def extract_search_query(filter_group, opts \\ []) do
+    field = Keyword.get(opts, :field, :_search)
+    operator = Keyword.get(opts, :operator, nil)
+
+    filter = find_filter(filter_group, field, operator)
+    if filter, do: filter.value, else: nil
+  end
+
+  @doc """
+  Extract multi-select values from a filter group.
+
+  Returns a list of selected values for enum/select fields.
+
+  ## Options
+
+    * `:single_value` - Return single value instead of list for :equals (default: false)
+
+  ## Examples
+
+      filter_group = %FilterGroup{
+        filters: [
+          %Filter{field: :status, operator: :in, value: [:active, :pending]}
+        ]
+      }
+      
+      QuickFilters.extract_multi_select(filter_group, :status)
+      #=> [:active, :pending]
+  """
+  def extract_multi_select(filter_group, field, opts \\ []) do
+    single_value = Keyword.get(opts, :single_value, false)
+
+    case find_filter(filter_group, field) do
+      nil ->
+        if single_value, do: nil, else: []
+
+      %{operator: :in, value: values} when is_list(values) ->
+        if single_value && length(values) == 1, do: hd(values), else: values
+
+      %{operator: :equals, value: value} ->
+        if single_value, do: value, else: [value]
+
+      _ ->
+        if single_value, do: nil, else: []
+    end
+  end
+
+  @doc """
+  Extract date range from a filter group.
+
+  Returns the date value or range tuple.
+
+  ## Examples
+
+      filter_group = %FilterGroup{
+        filters: [
+          %Filter{field: :due_date, operator: :between, value: {~D[2025-01-01], ~D[2025-01-31]}}
+        ]
+      }
+      
+      QuickFilters.extract_date_range(filter_group, :due_date)
+      #=> {~D[2025-01-01], ~D[2025-01-31]}
+  """
+  def extract_date_range(filter_group, field) do
+    case find_filter(filter_group, field) do
+      nil -> nil
+      filter -> filter.value
+    end
+  end
+
+  @doc """
+  Extract boolean value from a filter group.
+
+  ## Options
+
+    * `:default` - Default value if not found (default: nil)
+
+  ## Examples
+
+      filter_group = %FilterGroup{
+        filters: [
+          %Filter{field: :is_urgent, operator: :equals, value: true}
+        ]
+      }
+      
+      QuickFilters.extract_boolean(filter_group, :is_urgent)
+      #=> true
+  """
+  def extract_boolean(filter_group, field, opts \\ []) do
+    default = Keyword.get(opts, :default, nil)
+
+    case find_filter(filter_group, field) do
+      nil ->
+        default
+
+      %{operator: op, value: value} when op in [:equals, :is_true, :is_false] ->
+        value
+
+      _ ->
+        default
+    end
+  end
+
+  @doc """
+  Extract numeric value from a filter group.
+
+  Returns the numeric value or range.
+
+  ## Examples
+
+      filter_group = %FilterGroup{
+        filters: [
+          %Filter{field: :price, operator: :greater_than, value: 99.99}
+        ]
+      }
+      
+      QuickFilters.extract_numeric(filter_group, :price)
+      #=> 99.99
+  """
+  def extract_numeric(filter_group, field) do
+    case find_filter(filter_group, field) do
+      nil -> nil
+      filter -> filter.value
+    end
+  end
+
+  @doc """
+  Extract array value from a filter group.
+
+  ## Options
+
+    * `:default` - Default value if not found (default: [])
+
+  ## Examples
+
+      filter_group = %FilterGroup{
+        filters: [
+          %Filter{field: :tags, operator: :contains_any, value: ["urgent", "bug"]}
+        ]
+      }
+      
+      QuickFilters.extract_array(filter_group, :tags)
+      #=> ["urgent", "bug"]
+  """
+  def extract_array(filter_group, field, opts \\ []) do
+    default = Keyword.get(opts, :default, [])
+
+    case find_filter(filter_group, field) do
+      nil -> default
+      filter -> filter.value
+    end
+  end
+
+  @doc """
+  Extract multiple filter values at once.
+
+  ## Options
+
+    * `:socket` - If provided, applies values to socket assigns
+
+  ## Examples
+
+      extractors = [
+        search_query: &extract_search_query/1,
+        selected_statuses: fn fg -> extract_multi_select(fg, :status) end,
+        is_urgent: fn fg -> extract_boolean(fg, :is_urgent, default: false) end
+      ]
+      
+      result = QuickFilters.extract_all(filter_group, extractors)
+      #=> %{search_query: "test", selected_statuses: [:active], is_urgent: false}
+      
+      # With socket
+      socket = QuickFilters.extract_all(filter_group, extractors, socket: socket)
+  """
+  def extract_all(filter_group, extractors, opts \\ []) do
+    socket = Keyword.get(opts, :socket)
+
+    values =
+      Enum.reduce(extractors, %{}, fn {key, extractor}, acc ->
+        Map.put(acc, key, extractor.(filter_group))
+      end)
+
+    if socket do
+      Enum.reduce(values, socket, fn {key, value}, acc ->
+        assign_to_socket_or_map(acc, key, value)
+      end)
+    else
+      values
+    end
+  end
+
+  @doc """
+  Extract optional filters (filters not in exclusion list).
+
+  Returns a map with `:active_optional_filters` and `:optional_filter_values`.
+
+  ## Options
+
+    * `:socket` - If provided, applies values to socket assigns
+
+  ## Examples
+
+      excluded = [:status, :_search]
+      result = QuickFilters.extract_optional_filters(filter_group, excluded)
+      #=> %{
+      #=>   active_optional_filters: [:project, :tags],
+      #=>   optional_filter_values: %{project: "phoenix", tags: ["bug"]}
+      #=> }
+  """
+  def extract_optional_filters(filter_group, excluded_fields, opts \\ []) do
+    socket = Keyword.get(opts, :socket)
+
+    {active_filters, filter_values} =
+      filter_group.filters
+      |> Enum.reject(fn filter -> filter.field in excluded_fields end)
+      |> Enum.reduce({[], %{}}, fn filter, {fields, values} ->
+        {[filter.field | fields], Map.put(values, filter.field, filter.value)}
+      end)
+
+    active_filters = Enum.reverse(active_filters)
+
+    result = %{
+      active_optional_filters: active_filters,
+      optional_filter_values: filter_values
+    }
+
+    if socket do
+      socket
+      |> assign_to_socket_or_map(:active_optional_filters, active_filters)
+      |> assign_to_socket_or_map(:optional_filter_values, filter_values)
+    else
+      result
+    end
+  end
+
+  # Helper function to find a filter by field and optional operator
+  defp find_filter(filter_group, field, operator \\ nil) do
+    Enum.find(filter_group.filters, fn filter ->
+      filter.field == field && (is_nil(operator) || filter.operator == operator)
+    end)
+  end
+
+  # Helper to handle both Phoenix sockets and test maps
+  defp assign_to_socket_or_map(socket_or_map, key, value) do
+    case socket_or_map do
+      %{assigns: _} = map when not is_struct(map) ->
+        # Test case - simple map with assigns
+        put_in(map, [:assigns, key], value)
+
+      socket ->
+        # Real Phoenix socket
+        Phoenix.Component.assign(socket, key, value)
+    end
   end
 end

@@ -66,45 +66,29 @@ window.liveSocket = liveSocket
 // Listen for the auto_open_filter event
 window.addEventListener("phx:auto_open_filter", (e) => {
   const field = e.detail.field;
-  console.log("Auto-opening filter for field:", field);
   
   // Try to find and click the dropdown after a delay
   setTimeout(() => {
     // Try different selectors based on component type
-    // Date components use -date-wrapper inside the LiveComponent
+    // SearchSelect components have -wrapper suffix, DateRangeSelect has -date-wrapper
     const selectors = [
+      `#optional-filter-${field}-select-wrapper`,
+      `#optional-filter-${field}-multiselect-wrapper`,
       `#optional-filter-${field}-date-wrapper`,
-      `#optional-filter-${field}-datetime-wrapper`,
-      `#optional-filter-${field}-select`,
-      `#optional-filter-${field}-multiselect`
+      `#optional-filter-${field}-datetime-wrapper`
     ];
     
     for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element) {
-        console.log("Found element with selector:", selector);
-        
-        // For date wrappers, click the button directly
-        if (selector.includes('-wrapper')) {
-          const button = element.querySelector('button');
-          if (button) {
-            console.log("Clicking date button:", button);
-            button.click();
-            return;
-          }
-        } else {
-          // For select/multiselect, find the trigger
-          const trigger = element.querySelector('[data-part="trigger"]');
-          if (trigger) {
-            console.log("Clicking dropdown trigger:", trigger);
-            trigger.click();
-            return;
-          }
+        // All components have a button as the trigger
+        const button = element.querySelector('button');
+        if (button) {
+          button.click();
+          return;
         }
       }
     }
-    
-    console.log("Could not find element for field:", field);
-  }, 300); // Slightly longer delay for LiveComponents
+  }, 200); // Reduced delay since server handles timing
 })
 

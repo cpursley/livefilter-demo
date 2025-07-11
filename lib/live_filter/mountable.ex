@@ -10,16 +10,16 @@ defmodule LiveFilter.Mountable do
       defmodule MyAppWeb.ProductLive do
         use MyAppWeb, :live_view
         use LiveFilter.Mountable
-        
+
         def mount(params, session, socket) do
-          socket = 
+          socket =
             socket
             |> mount_filters()  # Adds default filter assigns
             |> assign(:products, [])
-            
+
           {:ok, socket}
         end
-        
+
         def handle_params(params, _uri, socket) do
           socket = handle_filter_params(socket, params)
           {:noreply, load_products(socket)}
@@ -38,7 +38,7 @@ defmodule LiveFilter.Mountable do
   Or override the generated functions:
 
       use LiveFilter.Mountable
-      
+
       # Override completely
       def mount_filters(socket, opts) do
         # Your custom implementation
@@ -244,7 +244,7 @@ defmodule LiveFilter.Mountable do
             query_string =
               if params == %{}, do: "", else: UrlUtils.flatten_and_encode_params(params)
 
-            # Use a basic path - in practice this should be overridden  
+            # Use a basic path - in practice this should be overridden
             path = if query_string == "", do: "/", else: "/?#{query_string}"
             path
           end

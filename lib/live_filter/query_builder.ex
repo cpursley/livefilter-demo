@@ -27,7 +27,7 @@ defmodule LiveFilter.QueryBuilder do
 
       # Single sort
       apply_sort(query, %Sort{field: :due_date, direction: :asc})
-      
+
       # Multiple sorts (applied in order)
       apply_sort(query, [
         %Sort{field: :priority, direction: :desc},
@@ -205,10 +205,7 @@ defmodule LiveFilter.QueryBuilder do
   end
 
   defp combine_dynamics(dynamics, :and) do
-    IO.inspect(length(dynamics), label: "Combining AND dynamics count")
-
     Enum.reduce(dynamics, fn dynamic, acc ->
-      IO.puts("Adding another AND condition")
       dynamic([t], ^acc and ^dynamic)
     end)
   end

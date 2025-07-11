@@ -638,5 +638,30 @@ defmodule LiveFilter.UrlSerializerTest do
       # Should only include well-formed filters
       assert length(filter_group.filters) <= 2
     end
+
+    test "deserializes datetime range filter" do
+      params = %{
+        "filters" => %{
+          "inserted_at" => %{
+            "operator" => "between",
+            "type" => "utc_datetime",
+            "start" => "2025-07-10T00:00:00Z",
+            "end" => "2025-07-19T23:59:59Z"
+          }
+        }
+      }
+
+      filter_group = UrlSerializer.from_params(params)
+
+      assert length(filter_group.filters) == 1
+      filter = hd(filter_group.filters)
+      assert filter.field == :inserted_at
+      assert filter.operator == :between
+      assert filter.type == :utc_datetime
+
+      {start_dt, end_dt} = filter.value
+      assert start_dt == ~U[2025-07-10 00:00:00Z]
+      assert end_dt == ~U[2025-07-19 23:59:59Z]
+    end
   end
 end
