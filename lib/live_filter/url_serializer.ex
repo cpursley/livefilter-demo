@@ -244,6 +244,7 @@ defmodule LiveFilter.UrlSerializer do
       # Array filter with values
       Map.has_key?(value, "values") ->
         values = convert_indexed_map_to_list(value["values"])
+
         %LiveFilter.Filter{
           field: field,
           operator: parse_operator(value["operator"], :in),
@@ -348,10 +349,11 @@ defmodule LiveFilter.UrlSerializer do
   # We need to convert this back to ["pending"]
   defp convert_indexed_map_to_list(value) when is_map(value) do
     value
-    |> Enum.sort_by(fn {index, _} -> 
+    |> Enum.sort_by(fn {index, _} ->
       case Integer.parse(index) do
         {int, ""} -> int
-        _ -> 999999  # Non-integer keys go to end
+        # Non-integer keys go to end
+        _ -> 999_999
       end
     end)
     |> Enum.map(fn {_index, val} -> val end)

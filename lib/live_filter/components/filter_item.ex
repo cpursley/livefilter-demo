@@ -1,8 +1,15 @@
 defmodule LiveFilter.Components.FilterItem do
+  @moduledoc """
+  A component for rendering individual filter items with configurable UI.
+
+  Accepts:
+  - filter: The filter struct
+  - field_options: List of {field, label, type, opts} tuples
+  - field_value_options: Map of field => options list for enum/array fields
+  - ui_components: Optional UI component configuration
+  """
   use Phoenix.LiveComponent
   alias LiveFilter.FilterTypes
-  alias TodoAppUi.{Button, Switch, Badge, Input}
-  import TodoAppWeb.CoreComponents, only: [icon: 1]
 
   @impl true
   def render(assigns) do
@@ -47,16 +54,14 @@ defmodule LiveFilter.Components.FilterItem do
       <% end %>
 
       <div>
-        <Button.button
+        <button
           phx-click="remove_filter"
           phx-target={@myself}
-          variant="ghost"
-          size="icon"
-          class="text-red-600 hover:bg-red-100"
+          class="text-red-600 hover:bg-red-100 p-1 rounded"
           type="button"
         >
-          <.icon name="hero-x-mark" class="w-4 h-4" />
-        </Button.button>
+          <span class="text-lg">×</span>
+        </button>
       </div>
     </div>
     """
@@ -96,8 +101,9 @@ defmodule LiveFilter.Components.FilterItem do
 
   defp render_text_input(assigns) do
     ~H"""
-    <Input.input
+    <input
       type="text"
+      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
       name="value"
       value={@filter.value}
       placeholder="Enter value"
@@ -109,8 +115,9 @@ defmodule LiveFilter.Components.FilterItem do
 
   defp render_number_input(assigns) do
     ~H"""
-    <Input.input
+    <input
       type="number"
+      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
       name="value"
       value={@filter.value}
       placeholder="Enter number"
@@ -123,8 +130,9 @@ defmodule LiveFilter.Components.FilterItem do
 
   defp render_date_input(assigns) do
     ~H"""
-    <Input.input
+    <input
       type="date"
+      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
       name="value"
       value={@filter.value}
       phx-change="value_changed"
@@ -136,8 +144,10 @@ defmodule LiveFilter.Components.FilterItem do
   defp render_boolean_toggle(assigns) do
     ~H"""
     <div class="flex items-center gap-3">
-      <Switch.switch
+      <input
+        type="checkbox"
         id={"boolean-toggle-#{@index}"}
+        class="h-4 w-4 rounded border-gray-300"
         name="value"
         checked={@filter.value == true}
         phx-click="toggle_boolean"
@@ -154,8 +164,9 @@ defmodule LiveFilter.Components.FilterItem do
     ~H"""
     <div class="flex gap-2 items-center">
       <%= if @filter.type == :date do %>
-        <Input.input
+        <input
           type="date"
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
           name="min_value"
           value={get_range_min(@filter.value)}
           placeholder="From"
@@ -164,8 +175,9 @@ defmodule LiveFilter.Components.FilterItem do
           class="w-36"
         />
         <span class="text-muted-foreground">to</span>
-        <Input.input
+        <input
           type="date"
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
           name="max_value"
           value={get_range_max(@filter.value)}
           placeholder="To"
@@ -174,8 +186,9 @@ defmodule LiveFilter.Components.FilterItem do
           class="w-36"
         />
       <% else %>
-        <Input.input
+        <input
           type="number"
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
           name="min_value"
           value={get_range_min(@filter.value)}
           placeholder="Min"
@@ -185,8 +198,9 @@ defmodule LiveFilter.Components.FilterItem do
           step={if @filter.type == :float, do: "0.01", else: "1"}
         />
         <span class="text-muted-foreground">to</span>
-        <Input.input
+        <input
           type="number"
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
           name="max_value"
           value={get_range_max(@filter.value)}
           placeholder="Max"
@@ -205,18 +219,21 @@ defmodule LiveFilter.Components.FilterItem do
     <div class="space-y-2">
       <div class="flex flex-wrap gap-1">
         <%= if is_list(@filter.value) && length(@filter.value) > 0 do %>
-          <Badge.badge :for={value <- @filter.value} variant="secondary" class="text-xs">
-            {get_label_for_value(@filter.field, value)}
+          <span
+            :for={value <- @filter.value}
+            class="inline-flex items-center px-2 py-1 text-xs bg-gray-100 rounded"
+          >
+            {get_label_for_value(@filter.field, value, @field_value_options)}
             <button
               type="button"
               phx-click="remove_multi_value"
               phx-value-value={value}
               phx-target={@myself}
-              class="ml-1"
+              class="ml-1 text-gray-500 hover:text-gray-700"
             >
-              <.icon name="hero-x-mark" class="h-3 w-3" />
+              ×
             </button>
-          </Badge.badge>
+          </span>
         <% end %>
       </div>
       <select
@@ -226,7 +243,7 @@ defmodule LiveFilter.Components.FilterItem do
         class="w-full px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
       >
         <option value="">Add tag...</option>
-        <%= for option <- get_field_options(@filter.field) do %>
+        <%= for option <- get_field_options(@filter.field, @field_value_options) do %>
           <%= unless is_selected?(option.value, @filter.value) do %>
             <option value={option.value}>{option.label}</option>
           <% end %>
@@ -238,8 +255,9 @@ defmodule LiveFilter.Components.FilterItem do
 
   defp render_datetime_input(assigns) do
     ~H"""
-    <Input.input
+    <input
       type="datetime-local"
+      class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md"
       name="value"
       value={format_datetime_value(@filter.value)}
       phx-change="value_changed"
@@ -258,7 +276,7 @@ defmodule LiveFilter.Components.FilterItem do
       class="w-full px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
     >
       <option value="">All</option>
-      <%= for option <- get_field_options(@filter.field) do %>
+      <%= for option <- get_field_options(@filter.field, @field_value_options) do %>
         <option value={option.value} selected={option.value == @filter.value}>{option.label}</option>
       <% end %>
     </select>
@@ -275,7 +293,7 @@ defmodule LiveFilter.Components.FilterItem do
       class="w-full px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
     >
       <option value="">All</option>
-      <%= for option <- get_field_options(@filter.field) do %>
+      <%= for option <- get_field_options(@filter.field, @field_value_options) do %>
         <option value={option.value} selected={option.value == @filter.value}>{option.label}</option>
       <% end %>
     </select>
@@ -289,6 +307,8 @@ defmodule LiveFilter.Components.FilterItem do
 
   @impl true
   def update(assigns, socket) do
+    # Ensure field_value_options has a default
+    assigns = Map.put_new(assigns, :field_value_options, %{})
     {:ok, assign(socket, assigns)}
   end
 
@@ -387,13 +407,17 @@ defmodule LiveFilter.Components.FilterItem do
     {:noreply, assign(socket, :filter, filter)}
   end
 
-  defp get_field_options(field) do
-    case field do
-      :status -> TodoApp.Todos.Todo.status_options()
-      :assigned_to -> TodoApp.Todos.Todo.assignee_options()
-      :tags -> TodoApp.Todos.Todo.tag_options()
-      :project -> TodoApp.Todos.Todo.project_options()
-      _ -> []
+  # Gets options for a specific field from the provided field_value_options map
+  defp get_field_options(field, field_value_options) do
+    Map.get(field_value_options, field, [])
+  end
+
+  defp get_label_for_value(field, value, field_value_options) do
+    options = get_field_options(field, field_value_options)
+
+    case Enum.find(options, fn opt -> opt.value == value end) do
+      %{label: label} -> label
+      nil -> to_string(value)
     end
   end
 
@@ -402,15 +426,6 @@ defmodule LiveFilter.Components.FilterItem do
   end
 
   defp is_selected?(value, filter_value), do: value == filter_value
-
-  defp get_label_for_value(field, value) do
-    options = get_field_options(field)
-
-    case Enum.find(options, fn opt -> opt.value == value end) do
-      %{label: label} -> label
-      nil -> value
-    end
-  end
 
   defp get_range_min({min, _}), do: min
   defp get_range_min(_), do: nil

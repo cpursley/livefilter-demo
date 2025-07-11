@@ -1,8 +1,15 @@
 defmodule LiveFilter.Components.FilterBuilder do
+  @moduledoc """
+  A component for building complex filter queries with a UI.
+
+  Accepts:
+  - filter_group: The FilterGroup struct
+  - field_options: List of {field, label, type, opts} tuples
+  - field_value_options: Map of field => options list for enum/array fields  
+  - ui_components: Optional UI component configuration
+  """
   use Phoenix.LiveComponent
   alias LiveFilter.{FilterGroup, Filter}
-  alias TodoAppUi.Button
-  import TodoAppWeb.CoreComponents, only: [icon: 1]
 
   @impl true
   def render(assigns) do
@@ -11,25 +18,23 @@ defmodule LiveFilter.Components.FilterBuilder do
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold">Filters</h3>
         <div class="flex gap-2">
-          <Button.button
+          <button
             phx-click="add_filter"
             phx-target={@myself}
-            variant="outline"
-            size="sm"
+            class="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
             type="button"
           >
-            <.icon name="hero-plus" class="w-4 h-4 mr-1" /> Add Filter
-          </Button.button>
+            + Add Filter
+          </button>
           <%= if FilterGroup.has_filters?(@filter_group) do %>
-            <Button.button
+            <button
               phx-click="clear_filters"
               phx-target={@myself}
-              variant="ghost"
-              size="sm"
+              class="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
               type="button"
             >
               Clear All
-            </Button.button>
+            </button>
           <% end %>
         </div>
       </div>
@@ -42,15 +47,16 @@ defmodule LiveFilter.Components.FilterBuilder do
             filter={filter}
             index={index}
             field_options={@field_options}
+            field_value_options={Map.get(assigns, :field_value_options, %{})}
           />
         <% end %>
       </div>
 
       <%= if FilterGroup.has_filters?(@filter_group) do %>
         <div class="flex justify-end">
-          <Button.button type="submit">
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
             Apply Filters
-          </Button.button>
+          </button>
         </div>
       <% end %>
     </form>
@@ -64,6 +70,9 @@ defmodule LiveFilter.Components.FilterBuilder do
 
   @impl true
   def update(assigns, socket) do
+    # Ensure field_value_options has a default
+    assigns = Map.put_new(assigns, :field_value_options, %{})
+
     {:ok,
      socket
      |> assign(assigns)

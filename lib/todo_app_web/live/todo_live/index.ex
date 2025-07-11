@@ -1,20 +1,64 @@
 defmodule TodoAppWeb.TodoLive.Index do
+  @moduledoc """
+  LiveView module demonstrating comprehensive LiveFilter integration.
+
+  Features:
+  - Real-time filtering with URL persistence
+  - Multi-select, date range, and boolean filters
+  - Dynamic column visibility management
+  - Database-level pagination with efficient queries
+  - Field registry for extensible filter configuration
+
+  ## LiveFilter Integration
+
+  Uses `LiveFilter.Mountable` for seamless LiveView integration:
+  - `mount_filters/2` - Initialize filter state and registry
+  - `handle_filter_params/3` - Parse URL parameters and restore UI state
+  - `apply_filters_and_reload/3` - Apply filters and update URL
+
+  ## Architecture
+
+  Follows a two-tier filtering approach:
+  1. **Default Filters**: Always visible (search, status, assignee, due date, urgent)
+  2. **Optional Filters**: Added via dropdown (project, tags, hours, complexity)
+
+  Filter state is managed through:
+  - LiveFilter.FilterGroup for query building
+  - Socket assigns for UI state (selected values, active filters)
+  - Field registry for configuration and validation
+  """
+
   use TodoAppWeb, :live_view
   use LiveFilter.Mountable
 
   alias TodoApp.Todos
   alias TodoAppUi.{Badge, Button}
-  alias LiveFilter.{FilterGroup, UrlSerializer, Sort, QuickFilters, EventRouter, FieldRegistry, UrlUtils}
   alias TodoAppWeb.Components.{LiveFilterLayout, FilterToolbar, PaginationHelper}
   import LiveFilter.Components.SortableHeader
 
   @impl true
+  @doc """
+  Initializes the LiveView with filter state and default assigns.
+
+  Sets up:
+  - LiveFilter integration via mount_filters/2 with field registry
+  - Default UI state for all filter types
+  - Column configuration for dynamic table display
+  - Empty todo stream (populated in handle_params/3)
+
+  ## Parameters
+  - `_params` - Mount parameters (unused)
+  - `_session` - Session data (unused)
+  - `socket` - LiveView socket
+
+  Returns `{:ok, socket}` with initialized state.
+  """
   def mount(_params, _session, socket) do
     socket =
       socket
       |> mount_filters(
         registry: todo_field_registry(),
-        default_sort: Sort.new(:due_date, :asc)
+        default_sort: LiveFilter.Sort.new(:due_date, :asc)
       )
       |> assign(:search_query, "")
       |> assign(:selected_statuses, [])
@@ -37,6 +81,21 @@ defmodule TodoAppWeb.TodoLive.Index do
   end
 
   @impl true
+  @doc """
+  Handles URL parameter changes and updates filter state.
+
+  Parses filter parameters from URL using LiveFilter.Mountable.handle_filter_params/3,
+  loads filtered todos, and applies the current live_action.
+
+  Uses convert_filters_to_ui_state/2 as ui_converter to restore UI state from filters.
+
+  ## Parameters
+  - `params` - URL parameters containing filter state
+  - `_url` - Current URL (unused)
+  - `socket` - Current socket state
+
+  Returns `{:noreply, updated_socket}` with applied filters and loaded data.
+  """
   def handle_params(params, _url, socket) do
     socket =
       socket
@@ -47,15 +106,16 @@ defmodule TodoAppWeb.TodoLive.Index do
     {:noreply, socket}
   end
 
+  # Sets the page title for the index action
   defp apply_action(socket, :index, _params) do
     socket
     |> assign(:page_title, "Todo Filter Demo")
   end
 
+  # Message handlers for filter components
+
   @impl true
   def handle_info({:date_range_selected, date_range}, socket) do
-    # Determine which filter sent the message by checking component IDs
-    # This is a simplified approach - in production you might want to pass the field name
     socket =
       socket
       |> assign(:date_range, date_range)
@@ -112,35 +172,32 @@ defmodule TodoAppWeb.TodoLive.Index do
       socket
       |> assign(:current_sort, new_sort)
       |> load_todos()
-
-    # Update URL with new sort
-    params = UrlSerializer.update_params(%{}, socket.assigns.filter_group, new_sort)
-
-    {:noreply, push_patch(socket, to: ~p"/todos?#{params}")}
-  end
-
-  @impl true
-  def handle_info({:column_visibility_changed, new_visible_columns}, socket) do
-    IO.inspect(new_visible_columns, label: "New visible columns")
-
-    socket =
-      socket
-      |> assign(:visible_columns, new_visible_columns)
-      # Reload todos to reset the stream
-      |> load_todos()
+      |> update_url_state()
 
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("toggle_command_filters", _params, socket) do
-    # TODO: Implement command palette
-    {:noreply, put_flash(socket, :info, "Command filters coming soon!")}
+  def handle_info({:column_visibility_changed, new_visible_columns}, socket) do
+    socket =
+      socket
+      |> assign(:visible_columns, new_visible_columns)
+      |> load_todos()
+
+    {:noreply, socket}
   end
 
-  # Handle dynamic quick filter events using EventRouter
+  # Event handlers
+
+  @impl true
+  @doc """
+  Routes dynamic quick filter events through EventRouter.
+
+  Handles events like "quick_filter_status_changed" by parsing the event name
+  and routing to appropriate handlers based on field type.
+  """
   def handle_event("quick_filter_" <> _rest = event, params, socket) do
-    EventRouter.route_event(event, params,
+    LiveFilter.EventRouter.route_event(event, params,
       handlers: %{
         "status_changed" => &handle_status_filter_change/3,
         "assignee_changed" => &handle_assignee_filter_change/3,
@@ -161,100 +218,22 @@ defmodule TodoAppWeb.TodoLive.Index do
     {:noreply, socket}
   end
 
+  def handle_event("toggle_status_filter", params, socket) do
+    handle_event("quick_filter_status_changed", params, socket)
+  end
+
+  def handle_event("toggle_assignee_filter", params, socket) do
+    handle_event("quick_filter_assignee_changed", params, socket)
+  end
+
+  def handle_event("toggle_urgent_filter", _params, socket) do
+    handle_event("quick_filter_urgent_changed", %{"toggle" => "urgent"}, socket)
+  end
+
   def handle_event("clear_search", _params, socket) do
     socket =
       socket
       |> assign(:search_query, "")
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_status_filter", %{"select" => status}, socket) do
-    # Convert string to atom if needed
-    status = if is_binary(status), do: String.to_existing_atom(status), else: status
-
-    socket =
-      socket
-      |> assign(:selected_statuses, [status])
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_status_filter", %{"toggle" => status}, socket) do
-    # Convert string to atom if needed
-    status = if is_binary(status), do: String.to_existing_atom(status), else: status
-
-    selected = socket.assigns.selected_statuses
-
-    updated =
-      if status in selected do
-        List.delete(selected, status)
-      else
-        [status | selected]
-      end
-
-    socket =
-      socket
-      |> assign(:selected_statuses, updated)
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_status_filter", %{"clear" => true}, socket) do
-    socket =
-      socket
-      |> assign(:selected_statuses, [])
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_assignee_filter", %{"select" => assignee}, socket) do
-    # For single select mode
-    socket =
-      socket
-      |> assign(:selected_assignees, [assignee])
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_assignee_filter", %{"toggle" => assignee}, socket) do
-    # For multi-select mode
-    selected = socket.assigns.selected_assignees
-
-    updated =
-      if assignee in selected do
-        List.delete(selected, assignee)
-      else
-        [assignee | selected]
-      end
-
-    socket =
-      socket
-      |> assign(:selected_assignees, updated)
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_assignee_filter", %{"clear" => true}, socket) do
-    socket =
-      socket
-      |> assign(:selected_assignees, [])
-      |> apply_quick_filters()
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_urgent_filter", _params, socket) do
-    # Toggle the urgent filter
-    socket =
-      socket
-      |> assign(:is_urgent, !socket.assigns.is_urgent)
       |> apply_quick_filters()
 
     {:noreply, socket}
@@ -267,9 +246,9 @@ defmodule TodoAppWeb.TodoLive.Index do
     # Toggle direction if clicking on the same field, otherwise default to asc
     new_sort =
       if current_sort && current_sort.field == field_atom do
-        Sort.toggle_direction(current_sort)
+        LiveFilter.Sort.toggle_direction(current_sort)
       else
-        Sort.new(field_atom, :asc)
+        LiveFilter.Sort.new(field_atom, :asc)
       end
 
     socket =
@@ -279,11 +258,6 @@ defmodule TodoAppWeb.TodoLive.Index do
       |> update_url_state()
 
     {:noreply, socket}
-  end
-
-  def handle_event("change_view", _params, socket) do
-    # TODO: Implement view type switching
-    {:noreply, put_flash(socket, :info, "View options coming soon!")}
   end
 
   def handle_event("change_per_page", %{"per_page" => per_page}, socket) do
@@ -323,11 +297,12 @@ defmodule TodoAppWeb.TodoLive.Index do
   def handle_event("clear_all_filters", _params, socket) do
     socket =
       socket
-      |> assign(:filter_group, %FilterGroup{})
+      |> assign(:filter_group, %LiveFilter.FilterGroup{})
       |> assign(:search_query, "")
       |> assign(:selected_statuses, [])
       |> assign(:selected_assignees, [])
       |> assign(:date_range, nil)
+      |> assign(:is_urgent, false)
       |> assign(:active_optional_filters, [])
       |> assign(:optional_filter_values, %{})
       # Reset to first page when clearing filters
@@ -338,8 +313,10 @@ defmodule TodoAppWeb.TodoLive.Index do
     {:noreply, socket}
   end
 
-  # Helper functions for the view
-  defp status_variant(status) do
+  # View helper functions
+
+  # Returns the CSS variant class for status badges based on todo status
+  def status_variant(status) do
     case status do
       :completed -> "default"
       :in_progress -> "secondary"
@@ -349,14 +326,16 @@ defmodule TodoAppWeb.TodoLive.Index do
     end
   end
 
-  defp format_assignee_name(assignee) do
+  # Formats assignee names from snake_case to Title Case for display
+  def format_assignee_name(assignee) do
     assignee
     |> String.split("_")
     |> Enum.map(&String.capitalize/1)
     |> Enum.join(" ")
   end
 
-  defp format_project_name(project) do
+  # Formats project names using options lookup or fallback snake_case to Title Case conversion
+  def format_project_name(project) do
     # Get the label from project options
     case Enum.find(TodoApp.Todos.Todo.project_options(), fn %{value: v} -> v == project end) do
       %{label: label} ->
@@ -371,7 +350,8 @@ defmodule TodoAppWeb.TodoLive.Index do
     end
   end
 
-  defp has_any_filters?(assigns) do
+  # Checks if any filters are currently active - used to show/hide clear filters button
+  def has_any_filters?(assigns) do
     length(assigns.filter_group.filters) > 0 ||
       assigns.search_query != "" ||
       length(assigns.selected_statuses) > 0 ||
@@ -381,7 +361,8 @@ defmodule TodoAppWeb.TodoLive.Index do
       length(assigns.active_optional_filters) > 0
   end
 
-  defp format_date(date) do
+  # Formats date as human-readable relative time (Today, Tomorrow, In 3 days, etc.)
+  def format_date(date) do
     today = Date.utc_today()
 
     case Date.diff(date, today) do
@@ -394,7 +375,8 @@ defmodule TodoAppWeb.TodoLive.Index do
     end
   end
 
-  defp format_datetime(datetime) do
+  # Formats datetime as relative time for recent dates (Just now, 5 min ago, Yesterday, etc.)
+  def format_datetime(datetime) do
     # Format as relative time for recent dates, otherwise show date
     now = DateTime.utc_now()
     diff_seconds = DateTime.diff(now, datetime)
@@ -411,11 +393,9 @@ defmodule TodoAppWeb.TodoLive.Index do
     end
   end
 
-  # Override the default URL updater to include our custom reload function
-  defp custom_reload_callback(socket) do
-    load_todos(socket)
-  end
+  # Private functions
 
+  # Loads paginated todos based on current filters and sort, updates stream and counts
   defp load_todos(socket) do
     # Use database-level pagination for better performance
     pagination_result =
@@ -438,89 +418,82 @@ defmodule TodoAppWeb.TodoLive.Index do
     |> assign(:status_counts, status_counts)
   end
 
+  # Builds filters from UI state and applies them, triggering data reload and URL update
   defp apply_quick_filters(socket) do
-    # Build filters using QuickFilters module
-    filters = []
+    # Build filters from current UI state using functional composition
+    filters = build_filters_from_ui_state(socket)
 
-    # Search filter
-    filters = 
-      case QuickFilters.search_filter(socket.assigns.search_query) do
-        nil -> filters
-        filter -> [filter | filters]
-      end
-
-    # Status filter
-    filters = 
-      case QuickFilters.multi_select_filter(:status, socket.assigns.selected_statuses) do
-        nil -> filters
-        filter -> [filter | filters]
-      end
-
-    # Assignee filter
-    filters = 
-      case QuickFilters.multi_select_filter(:assigned_to, socket.assigns.selected_assignees) do
-        nil -> filters
-        filter -> [filter | filters]
-      end
-
-    # Date range filter
-    filters = 
-      case QuickFilters.date_range_filter(:due_date, socket.assigns.date_range) do
-        nil -> filters
-        filter -> [filter | filters]
-      end
-
-    # Urgent filter
-    filters = 
-      case QuickFilters.boolean_filter(:is_urgent, socket.assigns.is_urgent, true_only: true) do
-        nil -> filters
-        filter -> [filter | filters]
-      end
-
-    # Optional filters using field registry
-    registry = todo_field_registry()
-    filters =
-      Enum.reduce(socket.assigns.active_optional_filters, filters, fn field, acc ->
-        value = Map.get(socket.assigns.optional_filter_values, field)
-        
-        if value != nil && value != "" && value != [] do
-          case FieldRegistry.get_field(registry, field) do
-            nil -> acc
-            field_config ->
-              operator = FieldRegistry.get_default_operator(registry, field)
-              
-              filter = %LiveFilter.Filter{
-                field: field,
-                operator: operator,
-                value: value,
-                type: field_config.type
-              }
-              
-              [filter | acc]
-          end
-        else
-          acc
-        end
-      end)
-
+    # Apply filters and trigger reload with URL update
     socket
     |> apply_filters_and_reload(
-      %FilterGroup{filters: filters, groups: [], conjunction: :and},
-      reload_callback: &custom_reload_callback/1,
+      %LiveFilter.FilterGroup{filters: filters, groups: [], conjunction: :and},
+      reload_callback: &load_todos/1,
       path: "/todos"
     )
   end
 
-  # Create a field registry for todo fields
+  # Converts UI state (search, selects, etc.) into LiveFilter.Filter structs
+  defp build_filters_from_ui_state(socket) do
+    # Basic filters using QuickFilters helpers
+    # Each function returns nil if the filter is empty/inactive
+    basic_filters =
+      [
+        LiveFilter.QuickFilters.search_filter(socket.assigns.search_query),
+        LiveFilter.QuickFilters.multi_select_filter(:status, socket.assigns.selected_statuses),
+        LiveFilter.QuickFilters.multi_select_filter(
+          :assigned_to,
+          socket.assigns.selected_assignees
+        ),
+        LiveFilter.QuickFilters.date_range_filter(:due_date, socket.assigns.date_range),
+        LiveFilter.QuickFilters.boolean_filter(:is_urgent, socket.assigns.is_urgent,
+          true_only: true
+        )
+      ]
+      # Remove inactive filters
+      |> Enum.reject(&is_nil/1)
+
+    # Optional filters from field registry
+    # Uses registry to determine field types and default operators
+    registry = todo_field_registry()
+    optional_filters = build_optional_filters(socket, registry)
+
+    # Combine all filters into single list
+    basic_filters ++ optional_filters
+  end
+
+  # Builds optional filters from active filter fields and their current values
+  defp build_optional_filters(socket, registry) do
+    socket.assigns.active_optional_filters
+    |> Enum.map(&build_optional_filter(&1, socket.assigns.optional_filter_values, registry))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Builds a single optional filter if field has a value and is in registry
+  defp build_optional_filter(field, filter_values, registry) do
+    with value when value not in [nil, "", []] <- Map.get(filter_values, field),
+         field_config when not is_nil(field_config) <-
+           LiveFilter.FieldRegistry.get_field(registry, field) do
+      %LiveFilter.Filter{
+        field: field,
+        operator: LiveFilter.FieldRegistry.get_default_operator(registry, field),
+        value: value,
+        type: field_config.type
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  # Creates field registry with all available filter fields and their types
   defp todo_field_registry do
-    FieldRegistry.from_fields([
-      FieldRegistry.string_field(:title, "Title"),
-      FieldRegistry.string_field(:description, "Description"),
-      FieldRegistry.enum_field(:status, "Status", []),
-      FieldRegistry.enum_field(:assigned_to, "Assignee", []),
-      FieldRegistry.enum_field(:project, "Project", []),
-      FieldRegistry.date_field(:due_date, "Due Date"),
-      FieldRegistry.boolean_field(:is_urgent, "Urgent"),
+    LiveFilter.FieldRegistry.from_fields([
+      LiveFilter.FieldRegistry.string_field(:title, "Title"),
+      LiveFilter.FieldRegistry.string_field(:description, "Description"),
+      LiveFilter.FieldRegistry.enum_field(:status, "Status", []),
+      LiveFilter.FieldRegistry.enum_field(:assigned_to, "Assignee", []),
+      LiveFilter.FieldRegistry.enum_field(:project, "Project", []),
+      LiveFilter.FieldRegistry.date_field(:due_date, "Due Date"),
+      LiveFilter.FieldRegistry.boolean_field(:is_urgent, "Urgent"),
       {:tags, :array, label: "Tags"},
       {:estimated_hours, :float, label: "Estimated Hours"},
       {:actual_hours, :float, label: "Actual Hours"},
@@ -529,6 +502,7 @@ defmodule TodoAppWeb.TodoLive.Index do
     ])
   end
 
+  # Defines optional fields available in the filter dropdown with icons and options
   defp optional_field_options do
     # Define which fields are available as optional filters
     # Format: {field, label, type, options}
@@ -553,88 +527,96 @@ defmodule TodoAppWeb.TodoLive.Index do
     ]
   end
 
-  # Helper functions for new LiveFilter integration
+  # EventRouter handlers
+
+  # Handles status filter changes - toggles, selects, or clears status values
   defp handle_status_filter_change(_field, params, socket) do
-    value = EventRouter.extract_event_value(params)
-    
-    new_statuses = 
+    value = LiveFilter.EventRouter.extract_event_value(params)
+
+    new_statuses =
       case value do
-        {:clear, true} -> []
-        {:toggle, status} -> toggle_in_list(socket.assigns.selected_statuses, String.to_existing_atom(status))
-        {:select, status} -> [String.to_existing_atom(status)]
-        _ -> socket.assigns.selected_statuses
+        {:clear, true} ->
+          []
+
+        {:toggle, status} ->
+          toggle_in_list(
+            socket.assigns.selected_statuses,
+            LiveFilter.TypeUtils.safe_to_atom(status)
+          )
+
+        {:select, status} ->
+          [LiveFilter.TypeUtils.safe_to_atom(status)]
+
+        _ ->
+          socket.assigns.selected_statuses
       end
-    
+
     socket
     |> assign(:selected_statuses, new_statuses)
     |> apply_quick_filters()
     |> then(&{:noreply, &1})
   end
-  
+
+  # Handles assignee filter changes - toggles, selects, or clears assignee values
   defp handle_assignee_filter_change(_field, params, socket) do
-    value = EventRouter.extract_event_value(params)
-    
-    new_assignees = 
+    value = LiveFilter.EventRouter.extract_event_value(params)
+
+    new_assignees =
       case value do
         {:clear, true} -> []
         {:toggle, assignee} -> toggle_in_list(socket.assigns.selected_assignees, assignee)
         {:select, assignee} -> [assignee]
         _ -> socket.assigns.selected_assignees
       end
-    
+
     socket
     |> assign(:selected_assignees, new_assignees)
     |> apply_quick_filters()
     |> then(&{:noreply, &1})
   end
-  
+
+  # Handles urgent filter changes - toggles boolean urgent flag
   defp handle_urgent_filter_change(_field, params, socket) do
-    value = EventRouter.extract_event_value(params)
-    
-    new_urgent = 
+    value = LiveFilter.EventRouter.extract_event_value(params)
+
+    new_urgent =
       case value do
         {:clear, true} -> false
         {:toggle, _} -> !socket.assigns.is_urgent
         _ -> socket.assigns.is_urgent
       end
-    
+
     socket
     |> assign(:is_urgent, new_urgent)
     |> apply_quick_filters()
     |> then(&{:noreply, &1})
   end
-  
+
+  # Routes optional filter events to appropriate message handlers
   defp handle_optional_filter_change(event, params, socket) do
-    case EventRouter.parse_filter_event(event, prefix: "quick_filter_") do
+    case LiveFilter.EventRouter.parse_filter_event(event, prefix: "quick_filter_") do
       {:ok, field, _action} ->
-        value = EventRouter.extract_event_value(params)
-        
+        value = LiveFilter.EventRouter.extract_event_value(params)
+
         case value do
           {:clear, true} ->
             send(self(), {:quick_filter_cleared, field})
+
           {_type, new_value} ->
             send(self(), {:quick_filter_changed, field, new_value})
+
           _ ->
             nil
         end
-        
+
         {:noreply, socket}
-        
+
       _ ->
         {:noreply, socket}
     end
   end
-  
-  
-  defp convert_to_atoms(list) when is_list(list) do
-    Enum.map(list, fn
-      item when is_binary(item) -> String.to_existing_atom(item)
-      item -> item
-    end)
-  end
-  defp convert_to_atoms(item) when is_binary(item), do: String.to_existing_atom(item)
-  defp convert_to_atoms(other), do: other
-  
+
+  # Toggles an item in a list - adds if not present, removes if present
   defp toggle_in_list(list, item) do
     if item in list do
       List.delete(list, item)
@@ -644,6 +626,8 @@ defmodule TodoAppWeb.TodoLive.Index do
   end
 
   # Column configuration
+
+  # Defines table column configuration with visibility and toggle settings
   defp column_config do
     %{
       # Always shown - cannot be toggled off
@@ -667,38 +651,23 @@ defmodule TodoAppWeb.TodoLive.Index do
     }
   end
 
+  # Returns list of columns visible by default based on column configuration
   defp default_visible_columns do
     column_config()
     |> Enum.filter(fn {_col, config} -> config.default_visible end)
     |> Enum.map(fn {col, _config} -> col end)
   end
 
-  # Use LiveFilter's update_filter_url function with custom URL builder
+  # Updates URL with current filter, sort, and pagination state
   defp update_url_state(socket) do
     update_filter_url(socket,
-      url_updater: fn socket, _opts ->
-        pagination = %{
-          page: socket.assigns.current_page,
-          per_page: socket.assigns.per_page
-        }
-
-        params =
-          UrlSerializer.update_params(
-            %{},
-            socket.assigns.filter_group,
-            socket.assigns.current_sort,
-            pagination
-          )
-
-        # Convert nested params to proper query string using UrlUtils
-        query_string = if params == %{}, do: "", else: UrlUtils.flatten_and_encode_params(params)
-        path = if query_string == "", do: "/todos", else: "/todos?#{query_string}"
-        push_patch(socket, to: path)
-      end
+      path: "/todos",
+      include_pagination: true,
+      include_sort: true
     )
   end
 
-  # Convert filters to UI state - manual implementation for now
+  # Converts FilterGroup back to UI state assigns for form controls
   defp convert_filters_to_ui_state(socket, filter_group) do
     # Initialize default values
     socket =
@@ -717,10 +686,10 @@ defmodule TodoAppWeb.TodoLive.Index do
         case filter do
           # Status filter
           %{field: :status, operator: :in, value: statuses} when is_list(statuses) ->
-            assign(acc, :selected_statuses, convert_to_atoms(statuses))
+            assign(acc, :selected_statuses, LiveFilter.TypeUtils.safe_to_atom(statuses))
 
           %{field: :status, operator: :equals, value: status} ->
-            assign(acc, :selected_statuses, [convert_to_atoms(status)])
+            assign(acc, :selected_statuses, [LiveFilter.TypeUtils.safe_to_atom(status)])
 
           # Assignee filter
           %{field: :assigned_to, operator: :in, value: assignees} when is_list(assignees) ->
@@ -743,7 +712,8 @@ defmodule TodoAppWeb.TodoLive.Index do
             assign(acc, :search_query, search_query)
 
           # Optional filters
-          %{field: field} when field not in [:status, :assigned_to, :due_date, :is_urgent, :_search] ->
+          %{field: field}
+          when field not in [:status, :assigned_to, :due_date, :is_urgent, :_search] ->
             if field in get_optional_field_names() do
               current_active = acc.assigns.active_optional_filters
               current_values = acc.assigns.optional_filter_values
@@ -763,7 +733,7 @@ defmodule TodoAppWeb.TodoLive.Index do
     socket
   end
 
-  # Get list of optional field names for validation
+  # Extracts field names from optional field options for validation
   defp get_optional_field_names do
     optional_field_options()
     |> Enum.map(fn {field, _, _, _} -> field end)

@@ -313,7 +313,7 @@ defmodule LiveFilter.UrlSerializerTest do
 
       filter_group = UrlSerializer.from_params(params)
       filter = hd(filter_group.filters)
-      
+
       # Should be ordered by index: "0", "2", "5"
       assert filter.value == ["bug", "urgent", "feature"]
     end
@@ -332,7 +332,7 @@ defmodule LiveFilter.UrlSerializerTest do
 
       filter_group = UrlSerializer.from_params(params)
       filter = hd(filter_group.filters)
-      
+
       # Non-numeric indices should go to the end
       assert filter.value == ["high", "medium", "invalid"]
     end
@@ -566,14 +566,14 @@ defmodule LiveFilter.UrlSerializerTest do
 
       # Step 1: Serialize to params
       params = UrlSerializer.update_params(%{}, original_group)
-      
+
       # Step 2: Flatten and encode like UrlUtils would
       flattened = LiveFilter.UrlUtils.flatten_params(params)
       query_string = URI.encode_query(flattened)
-      
+
       # Step 3: Parse like Phoenix would (simulates Phoenix.ConnTest.build_conn/4 parsing)
       phoenix_parsed = URI.decode_query(query_string)
-      
+
       # Step 4: Convert back to nested structure like Phoenix does for nested params
       # This simulates how Phoenix parses filters[status][values][0]=pending
       phoenix_nested = %{
@@ -589,10 +589,10 @@ defmodule LiveFilter.UrlSerializerTest do
           }
         }
       }
-      
+
       # Step 5: Parse back with our UrlSerializer
       final_group = UrlSerializer.from_params(phoenix_nested)
-      
+
       # Verify the filter survived the round trip
       final_filter = hd(final_group.filters)
       assert final_filter.field == :status
