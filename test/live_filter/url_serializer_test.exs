@@ -277,6 +277,66 @@ defmodule LiveFilter.UrlSerializerTest do
       assert filter.value == ["pending", "in_progress"]
     end
 
+    test "deserializes array values from indexed map (Phoenix URL parsing)" do
+      # This simulates how Phoenix parses filters[status][values][0]=pending&filters[status][values][1]=active
+      params = %{
+        "filters" => %{
+          "status" => %{
+            "values" => %{"0" => "pending", "1" => "active"},
+            "operator" => "in",
+            "type" => "enum"
+          }
+        }
+      }
+
+      filter_group = UrlSerializer.from_params(params)
+
+      assert length(filter_group.filters) == 1
+      filter = hd(filter_group.filters)
+      assert filter.field == :status
+      assert filter.operator == :in
+      assert filter.value == ["pending", "active"]
+      assert filter.type == :enum
+    end
+
+    test "handles indexed maps with non-sequential indices" do
+      # Edge case: indices are not sequential (e.g., user manipulated URL)
+      params = %{
+        "filters" => %{
+          "tags" => %{
+            "values" => %{"2" => "urgent", "0" => "bug", "5" => "feature"},
+            "operator" => "contains_any",
+            "type" => "array"
+          }
+        }
+      }
+
+      filter_group = UrlSerializer.from_params(params)
+      filter = hd(filter_group.filters)
+      
+      # Should be ordered by index: "0", "2", "5"
+      assert filter.value == ["bug", "urgent", "feature"]
+    end
+
+    test "handles indexed maps with mixed value types" do
+      # Edge case: mixed numeric and string indices
+      params = %{
+        "filters" => %{
+          "priority" => %{
+            "values" => %{"0" => "high", "1" => "medium", "abc" => "invalid"},
+            "operator" => "in",
+            "type" => "enum"
+          }
+        }
+      }
+
+      filter_group = UrlSerializer.from_params(params)
+      filter = hd(filter_group.filters)
+      
+      # Non-numeric indices should go to the end
+      assert filter.value == ["high", "medium", "invalid"]
+    end
+
     test "deserializes boolean values" do
       params = %{
         "filters" => %{
@@ -491,6 +551,54 @@ defmodule LiveFilter.UrlSerializerTest do
                  filter.field == orig.field && filter.operator == orig.operator
                end)
              end)
+    end
+
+    test "array filters survive URL encoding/parsing round-trip" do
+      # Test the complete flow: Filter -> URL params -> URL encoding -> Phoenix parsing -> UrlSerializer
+      original_filter = %Filter{
+        field: :status,
+        operator: :in,
+        value: ["pending", "active", "completed"],
+        type: :enum
+      }
+
+      original_group = %FilterGroup{filters: [original_filter]}
+
+      # Step 1: Serialize to params
+      params = UrlSerializer.update_params(%{}, original_group)
+      
+      # Step 2: Flatten and encode like UrlUtils would
+      flattened = LiveFilter.UrlUtils.flatten_params(params)
+      query_string = URI.encode_query(flattened)
+      
+      # Step 3: Parse like Phoenix would (simulates Phoenix.ConnTest.build_conn/4 parsing)
+      phoenix_parsed = URI.decode_query(query_string)
+      
+      # Step 4: Convert back to nested structure like Phoenix does for nested params
+      # This simulates how Phoenix parses filters[status][values][0]=pending
+      phoenix_nested = %{
+        "filters" => %{
+          "status" => %{
+            "values" => %{
+              "0" => phoenix_parsed["filters[status][values][0]"],
+              "1" => phoenix_parsed["filters[status][values][1]"],
+              "2" => phoenix_parsed["filters[status][values][2]"]
+            },
+            "operator" => phoenix_parsed["filters[status][operator]"],
+            "type" => phoenix_parsed["filters[status][type]"]
+          }
+        }
+      }
+      
+      # Step 5: Parse back with our UrlSerializer
+      final_group = UrlSerializer.from_params(phoenix_nested)
+      
+      # Verify the filter survived the round trip
+      final_filter = hd(final_group.filters)
+      assert final_filter.field == :status
+      assert final_filter.operator == :in
+      assert final_filter.value == ["pending", "active", "completed"]
+      assert final_filter.type == :enum
     end
   end
 

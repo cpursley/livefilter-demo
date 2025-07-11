@@ -243,10 +243,11 @@ defmodule LiveFilter.UrlSerializer do
 
       # Array filter with values
       Map.has_key?(value, "values") ->
+        values = convert_indexed_map_to_list(value["values"])
         %LiveFilter.Filter{
           field: field,
           operator: parse_operator(value["operator"], :in),
-          value: Enum.map(value["values"], &deserialize_value/1),
+          value: Enum.map(values, &deserialize_value/1),
           type: parse_type(value["type"], :array)
         }
 
@@ -341,4 +342,21 @@ defmodule LiveFilter.UrlSerializer do
     sub_map = Map.get(map, key, %{})
     Map.put(map, key, deep_put(sub_map, rest, value))
   end
+
+  # Helper to convert indexed maps back to lists
+  # Phoenix parses filters[status][values][0]=pending as %{"values" => %{"0" => "pending"}}
+  # We need to convert this back to ["pending"]
+  defp convert_indexed_map_to_list(value) when is_map(value) do
+    value
+    |> Enum.sort_by(fn {index, _} -> 
+      case Integer.parse(index) do
+        {int, ""} -> int
+        _ -> 999999  # Non-integer keys go to end
+      end
+    end)
+    |> Enum.map(fn {_index, val} -> val end)
+  end
+
+  defp convert_indexed_map_to_list(value) when is_list(value), do: value
+  defp convert_indexed_map_to_list(value), do: [value]
 end
