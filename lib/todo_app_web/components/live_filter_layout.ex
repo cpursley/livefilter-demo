@@ -10,8 +10,8 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
     router: TodoAppWeb.Router,
     statics: TodoAppWeb.static_paths()
 
-  import TodoAppUi.Icon
-  import TodoAppUi.Badge
+  import SaladUI.Icon
+  import SaladUI.Badge
 
   # Import Phoenix.Component for attrs and slots
   import Phoenix.Component

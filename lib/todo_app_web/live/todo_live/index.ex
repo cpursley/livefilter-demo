@@ -32,7 +32,7 @@ defmodule TodoAppWeb.TodoLive.Index do
   use LiveFilter.Mountable
 
   alias TodoApp.Todos
-  alias TodoAppUi.{Badge, Button}
+  alias SaladUI.{Badge, Button}
   alias TodoAppWeb.Components.{LiveFilterLayout, FilterToolbar, PaginationHelper, TodoCard}
   alias LiveFilter.QuickFilters
   import LiveFilter.Components.SortableHeader

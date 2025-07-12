@@ -134,12 +134,12 @@
         </div>
       <% else %>
         <div class="hidden md:block">
-          <TodoAppUi.Table.table aria-label="Todos list">
-            <TodoAppUi.Table.table_header>
-              <TodoAppUi.Table.table_row class="group">
-                <TodoAppUi.Table.table_head class="w-8">
+          <SaladUI.Table.table aria-label="Todos list">
+            <SaladUI.Table.table_header>
+              <SaladUI.Table.table_row class="group">
+                <SaladUI.Table.table_head class="w-8">
                   <.icon name="hero-flag" class="h-4 w-4" />
-                </TodoAppUi.Table.table_head>
+                </SaladUI.Table.table_head>
                 <.sortable_header
                   field={:title}
                   label="Title"
@@ -232,29 +232,29 @@
                   current_sort={@current_sort}
                   phx-click="sort_by"
                 />
-                <TodoAppUi.Table.table_head class="w-10">
+                <SaladUI.Table.table_head class="w-10">
                   <.live_component
                     module={LiveFilter.Components.ColumnSettings}
                     id="column-settings"
                     columns={@column_config}
                     visible_columns={@visible_columns}
                   />
-                </TodoAppUi.Table.table_head>
-              </TodoAppUi.Table.table_row>
-            </TodoAppUi.Table.table_header>
-            <TodoAppUi.Table.table_body id="todos-stream" phx-update="stream">
-              <TodoAppUi.Table.table_row
+                </SaladUI.Table.table_head>
+              </SaladUI.Table.table_row>
+            </SaladUI.Table.table_header>
+            <SaladUI.Table.table_body id="todos-stream" phx-update="stream">
+              <SaladUI.Table.table_row
                 :for={{id, todo} <- @streams.todos}
                 id={id}
                 class="cursor-pointer hover:bg-muted/50"
               >
-                <TodoAppUi.Table.table_cell class="text-center">
+                <SaladUI.Table.table_cell class="text-center">
                   <%= if todo.is_urgent do %>
                     <.icon name="hero-exclamation-circle" class="h-4 w-4 text-destructive" />
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell class="font-medium">
+                <SaladUI.Table.table_cell class="font-medium">
                   <div class="line-clamp-1">{todo.title}</div>
 
                   <%!-- Show description and tags in title column when they're hidden --%>
@@ -282,9 +282,9 @@
                       <% end %>
                     </div>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:description in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:description in @visible_columns}>
                   <%= if todo.description do %>
                     <div class="text-sm text-muted-foreground line-clamp-2">
                       {todo.description}
@@ -292,9 +292,9 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:tags in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:tags in @visible_columns}>
                   <%= if todo.tags && length(todo.tags) > 0 do %>
                     <div class="flex gap-1 flex-wrap">
                       <Badge.badge
@@ -313,26 +313,26 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:status in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:status in @visible_columns}>
                   <Badge.badge
                     variant={status_variant(todo.status)}
                     class="text-xs whitespace-nowrap"
                   >
                     {Phoenix.Naming.humanize(todo.status)}
                   </Badge.badge>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:project in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:project in @visible_columns}>
                   <%= if todo.project do %>
                     <span class="text-sm">{format_project_name(todo.project)}</span>
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:assigned_to in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:assigned_to in @visible_columns}>
                   <%= if todo.assigned_to do %>
                     <div class="flex items-center gap-2">
                       <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
@@ -345,9 +345,9 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">Unassigned</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:due_date in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:due_date in @visible_columns}>
                   <%= if todo.due_date do %>
                     <div class="flex items-center gap-1.5">
                       <span class="text-sm">{format_date(todo.due_date)}</span>
@@ -361,15 +361,15 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:created_at in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:created_at in @visible_columns}>
                   <span class="text-sm text-muted-foreground">
                     {format_datetime(todo.inserted_at)}
                   </span>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell
+                <SaladUI.Table.table_cell
                   :if={:estimated_hours in @visible_columns}
                   class="text-right"
                 >
@@ -380,9 +380,9 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell
+                <SaladUI.Table.table_cell
                   :if={:actual_hours in @visible_columns}
                   class="text-right"
                 >
@@ -393,17 +393,17 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:complexity in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:complexity in @visible_columns}>
                   <%= if todo.complexity do %>
                     <span class="text-sm">{todo.complexity}/10</span>
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:completed_at in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:completed_at in @visible_columns}>
                   <%= if todo.completed_at do %>
                     <span class="text-sm text-muted-foreground">
                       {format_datetime(todo.completed_at)}
@@ -411,22 +411,22 @@
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell :if={:is_recurring in @visible_columns}>
+                <SaladUI.Table.table_cell :if={:is_recurring in @visible_columns}>
                   <%= if todo.is_recurring do %>
                     <.icon name="hero-arrow-path" class="h-4 w-4 text-muted-foreground" />
                   <% else %>
                     <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </TodoAppUi.Table.table_cell>
+                </SaladUI.Table.table_cell>
 
-                <TodoAppUi.Table.table_cell class="w-10">
+                <SaladUI.Table.table_cell class="w-10">
                   <%!-- Empty cell for settings column --%>
-                </TodoAppUi.Table.table_cell>
-              </TodoAppUi.Table.table_row>
-            </TodoAppUi.Table.table_body>
-          </TodoAppUi.Table.table>
+                </SaladUI.Table.table_cell>
+              </SaladUI.Table.table_row>
+            </SaladUI.Table.table_body>
+          </SaladUI.Table.table>
         </div>
       <% end %>
 

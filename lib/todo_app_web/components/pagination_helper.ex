@@ -4,7 +4,7 @@ defmodule TodoAppWeb.Components.PaginationHelper do
   """
   use Phoenix.Component
 
-  import TodoAppUi.Pagination
+  import SaladUI.Pagination
   import Phoenix.Component
 
   alias Phoenix.LiveView.JS

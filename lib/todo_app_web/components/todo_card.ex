@@ -2,12 +2,12 @@ defmodule TodoAppWeb.Components.TodoCard do
   @moduledoc """
   Mobile-friendly card component for displaying todo items.
   """
-  use TodoAppUi, :component
+  use SaladUI, :component
 
-  import TodoAppUi.Card
-  import TodoAppUi.Badge
-  import TodoAppUi.Avatar
-  import TodoAppUi.Icon
+  import SaladUI.Card
+  import SaladUI.Badge
+  import SaladUI.Avatar
+  import SaladUI.Icon
 
   import TodoAppWeb.TodoLive.Index,
     only: [format_assignee_name: 1, format_project_name: 1, format_date: 1, status_variant: 1]

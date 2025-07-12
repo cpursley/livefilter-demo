@@ -10,11 +10,11 @@ defmodule TodoAppWeb.Components.FilterToolbar do
     router: TodoAppWeb.Router,
     statics: TodoAppWeb.static_paths()
 
-  import TodoAppUi.Input
-  import TodoAppUi.Button
-  import TodoAppUi.DropdownMenu
-  import TodoAppUi.Icon
-  import TodoAppUi.Badge
+  import SaladUI.Input
+  import SaladUI.Button
+  import SaladUI.DropdownMenu
+  import SaladUI.Icon
+  import SaladUI.Badge
 
   import Phoenix.Component
   import LiveFilter.Components.SearchSelect
