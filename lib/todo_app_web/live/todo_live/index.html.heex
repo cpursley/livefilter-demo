@@ -1,5 +1,14 @@
 <LiveFilterLayout.live_filter_layout current_tab="table">
   <:toolbar>
+    <%!-- Views Bar --%>
+    <TodoAppWeb.Components.ViewsBar.views_bar
+      views={@saved_views}
+      current_query_string={@current_query_string}
+      active_view={@active_view}
+      on_apply="apply_view"
+      on_delete="delete_view"
+    />
+
     <LiveFilterLayout.toolbar>
       <:quick_filters>
         <%!-- View toggle - styled like tabs but using simple buttons --%>
@@ -73,11 +82,23 @@
           class="contents"
         />
 
-        <%!-- Add Filter and Clear always together --%>
+        <%!-- Filter action buttons --%>
         <%= if has_any_filters?(assigns) do %>
           <Button.button variant="ghost" size="sm" phx-click="clear_all_filters">
             <.icon name="hero-x-mark" class="mr-2 h-4 w-4" /> Clear Filters
           </Button.button>
+        <% end %>
+
+        <%= case save_button_state(assigns) do %>
+          <% :save_as_view -> %>
+            <Button.button variant="ghost" size="sm" phx-click="show_save_view_modal">
+              <.icon name="hero-square-3-stack-3d" class="mr-2 h-4 w-4" /> Save As View
+            </Button.button>
+          <% :update_view -> %>
+            <Button.button variant="ghost" size="sm" phx-click="update_current_view">
+              <.icon name="hero-arrow-path" class="mr-2 h-4 w-4" /> Update View
+            </Button.button>
+          <% _ -> %>
         <% end %>
       </:quick_filters>
     </LiveFilterLayout.toolbar>
@@ -456,3 +477,10 @@
     </div>
   </:content>
 </LiveFilterLayout.live_filter_layout>
+
+<%!-- Save View Modal --%>
+<TodoAppWeb.Components.SaveViewModal.modal
+  :if={@show_save_view_modal}
+  on_save="save_current_view"
+  on_cancel={JS.push("hide_save_view_modal")}
+/>

@@ -69,6 +69,12 @@ defmodule TodoAppWeb.TodoLive.Index do
           default_visible_columns()
       end
 
+    # Load all views including demos
+    saved_views = get_all_views_with_demos(session_id)
+
+    # Initialize current query string
+    current_query_string = ""
+
     socket =
       socket
       |> mount_filters(
@@ -90,6 +96,10 @@ defmodule TodoAppWeb.TodoLive.Index do
       |> assign(:status_counts, %{})
       |> assign(:column_config, column_config())
       |> assign(:visible_columns, visible_columns)
+      |> assign(:saved_views, saved_views)
+      |> assign(:show_save_view_modal, false)
+      |> assign(:current_query_string, current_query_string)
+      |> assign(:active_view, :no_active_view)
       # Initialize empty streams for desktop table, desktop cards, and mobile views
       |> stream(:todos, [])
       |> stream(:todos_cards, [])
@@ -119,6 +129,7 @@ defmodule TodoAppWeb.TodoLive.Index do
       socket
       |> handle_filter_params(params, ui_converter: &convert_filters_to_ui_state/2)
       |> load_todos()
+      |> update_current_query_string()
       |> apply_action(socket.assigns.live_action, params)
 
     {:noreply, socket}
@@ -361,9 +372,133 @@ defmodule TodoAppWeb.TodoLive.Index do
       |> assign(:optional_filter_values, %{})
       # Reset to first page when clearing filters
       |> assign(:current_page, 1)
+      |> assign(:current_query_string, "")
+      |> assign(:active_view, :no_active_view)
       |> load_todos_and_update_url_state()
 
     {:noreply, socket}
+  end
+
+  def handle_event("apply_view", %{"query_string" => query_string}, socket) do
+    # Find the view that was clicked or set :no_active_view for "All" (empty string)
+    active_view =
+      if query_string == "" do
+        :no_active_view
+      else
+        Enum.find(socket.assigns.saved_views, fn view ->
+          view.query_string == query_string
+        end) || :no_active_view
+      end
+
+    # Apply a saved view by navigating to the URL with the saved query string
+    socket = assign(socket, :active_view, active_view)
+    {:noreply, push_patch(socket, to: "/todos?#{query_string}")}
+  end
+
+  def handle_event("save_current_view", params, socket) do
+    name = params["name"]
+    # Default to gray if not provided
+    color = Map.get(params, "color", "gray")
+    # Get current filter state as query string
+    query_string = get_current_query_string(socket)
+
+    # Save the view with color
+    case TodoApp.TableFilterViews.save_view(socket.assigns.session_id, name, query_string, color) do
+      {:ok, new_view} ->
+        # Reload views including demos and hide modal
+        saved_views = get_all_views_with_demos(socket.assigns.session_id)
+
+        socket =
+          socket
+          |> assign(:saved_views, saved_views)
+          |> assign(:show_save_view_modal, false)
+          # Set the newly saved view as active
+          |> assign(:active_view, new_view)
+          |> put_flash(:info, "View \"#{name}\" saved successfully")
+
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Failed to save view")}
+    end
+  end
+
+  def handle_event("delete_view", %{"view_id" => view_id_str}, socket) do
+    # Handle both integer IDs from GenServer and atom IDs from demo view
+    view_id =
+      case Integer.parse(view_id_str) do
+        {id, ""} -> id
+        _ -> String.to_existing_atom(view_id_str)
+      end
+
+    # For demo views, just remove them from the list without calling GenServer
+    socket =
+      if view_id in [:demo_view_1, :demo_view_2] do
+        saved_views = Enum.reject(socket.assigns.saved_views, &(&1.id == view_id))
+
+        socket
+        |> assign(:saved_views, saved_views)
+        |> put_flash(:info, "View deleted successfully")
+      else
+        case TodoApp.TableFilterViews.delete_view(socket.assigns.session_id, view_id) do
+          :ok ->
+            # Reload views including demos
+            saved_views = get_all_views_with_demos(socket.assigns.session_id)
+
+            socket
+            |> assign(:saved_views, saved_views)
+            |> put_flash(:info, "View deleted successfully")
+
+          {:error, :not_found} ->
+            put_flash(socket, :error, "View not found")
+        end
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("show_save_view_modal", _params, socket) do
+    {:noreply, assign(socket, :show_save_view_modal, true)}
+  end
+
+  def handle_event("update_current_view", _params, socket) do
+    case socket.assigns.active_view do
+      :no_active_view ->
+        {:noreply, socket}
+
+      active_view ->
+        # Update the existing view with current filters
+        query_string = get_current_query_string(socket)
+
+        case TodoApp.TableFilterViews.update_view(
+               socket.assigns.session_id,
+               active_view.id,
+               active_view.name,
+               query_string
+             ) do
+          {:ok, _updated_view} ->
+            # Reload views including demos
+            saved_views = get_all_views_with_demos(socket.assigns.session_id)
+
+            # Update active view with new query string
+            updated_active_view = %{active_view | query_string: query_string}
+
+            socket =
+              socket
+              |> assign(:saved_views, saved_views)
+              |> assign(:active_view, updated_active_view)
+              |> put_flash(:info, "View \"#{active_view.name}\" updated successfully")
+
+            {:noreply, socket}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Failed to update view")}
+        end
+    end
+  end
+
+  def handle_event("hide_save_view_modal", _params, socket) do
+    {:noreply, assign(socket, :show_save_view_modal, false)}
   end
 
   def handle_event("change_view_mode", params, socket) do
@@ -382,6 +517,7 @@ defmodule TodoAppWeb.TodoLive.Index do
     socket
     |> load_todos()
     |> update_url_state()
+    |> update_current_query_string()
   end
 
   # View helper functions
@@ -430,6 +566,28 @@ defmodule TodoAppWeb.TodoLive.Index do
       assigns.date_range != nil ||
       assigns.is_urgent == true ||
       length(assigns.active_optional_filters) > 0
+  end
+
+  # Determines what save button to show based on current state
+  def save_button_state(assigns) do
+    cond do
+      # No filters active - no button
+      not has_any_filters?(assigns) ->
+        :none
+
+      # Active view exists and query string matches - no changes, no button
+      assigns.active_view != :no_active_view &&
+          assigns.current_query_string == assigns.active_view.query_string ->
+        :none
+
+      # Active view exists but query string differs - show update button
+      assigns.active_view != :no_active_view ->
+        :update_view
+
+      # No active view but filters exist - show save as button
+      true ->
+        :save_as_view
+    end
   end
 
   # Formats date as human-readable relative time (Today, Tomorrow, In 3 days, etc.)
@@ -509,6 +667,24 @@ defmodule TodoAppWeb.TodoLive.Index do
       reload_callback: &load_todos/1,
       path: "/todos"
     )
+    |> update_current_query_string()
+    |> maybe_clear_active_view()
+  end
+
+  # Clear active view if we're no longer on that exact view
+  defp maybe_clear_active_view(socket) do
+    case socket.assigns.active_view do
+      :no_active_view ->
+        socket
+
+      active_view ->
+        if socket.assigns.current_query_string != active_view.query_string do
+          # User has modified filters, so we're no longer on the saved view
+          assign(socket, :active_view, :no_active_view)
+        else
+          socket
+        end
+    end
   end
 
   # Converts UI state (search, selects, etc.) into LiveFilter.Filter structs
@@ -764,6 +940,11 @@ defmodule TodoAppWeb.TodoLive.Index do
     )
   end
 
+  # Updates the current query string in socket assigns
+  defp update_current_query_string(socket) do
+    assign(socket, :current_query_string, get_current_query_string(socket))
+  end
+
   # Converts FilterGroup back to UI state assigns for form controls
   defp convert_filters_to_ui_state(socket, filter_group) do
     # Define extractors for standard filters
@@ -823,25 +1004,112 @@ defmodule TodoAppWeb.TodoLive.Index do
     end
   end
 
+  # Gets the current filter state as a URL query string
+  defp get_current_query_string(socket) do
+    alias LiveFilter.{UrlSerializer, UrlUtils}
+
+    # Build params from current filter state
+    params = %{}
+
+    # Add filters
+    filter_group = socket.assigns[:filter_group] || %LiveFilter.FilterGroup{}
+    params = UrlSerializer.update_params(params, filter_group)
+
+    # Add sort if present
+    params =
+      if socket.assigns[:current_sort] do
+        UrlSerializer.update_params(params, filter_group, socket.assigns.current_sort)
+      else
+        params
+      end
+
+    # Add pagination
+    pagination = %{
+      page: socket.assigns[:current_page] || 1,
+      per_page: socket.assigns[:per_page] || 10
+    }
+
+    params =
+      UrlSerializer.update_params(params, filter_group, socket.assigns[:current_sort], pagination)
+
+    # Convert to query string
+    if params == %{} do
+      ""
+    else
+      UrlUtils.flatten_and_encode_params(params)
+    end
+  end
+
   # Gets or generates a unique session ID for user preferences
-  # Uses the Phoenix session cookie signing salt and timestamp to create a stable ID
+  # Uses the CSRF token which persists across page refreshes within the same browser session
   defp get_or_generate_session_id(session) do
-    # Use the Phoenix session data itself to create a stable session ID
-    # This will be the same across page refreshes for the same browser session
-    session_data = Map.take(session, ["_csrf_token", "_live_session_id"])
-
-    case Map.values(session_data) do
-      [] ->
-        # Fallback if no session data is available
-        "anonymous_#{:erlang.system_time(:millisecond)}"
-
-      values ->
-        # Create a hash of the session data for a stable but unique ID
-        session_string = values |> Enum.join("|")
-
-        :crypto.hash(:sha256, session_string)
+    case session do
+      %{"_csrf_token" => csrf_token} when is_binary(csrf_token) ->
+        # The CSRF token is stable across page refreshes for the same browser session
+        # Hash it to create a shorter, consistent identifier
+        :crypto.hash(:sha256, csrf_token)
         |> Base.encode64(padding: false)
         |> String.slice(0, 16)
+
+      _ ->
+        # Fallback: generate a temporary ID if no CSRF token available
+        # This should rarely happen in a properly configured Phoenix app
+        "temp_#{:erlang.unique_integer([:positive])}"
     end
+  end
+
+  # Helper to always include demo views with user saved views
+  defp get_all_views_with_demos(session_id) do
+    user_saved_views = TodoApp.TableFilterViews.get_views(session_id)
+
+    # Build the demo views
+    demo_params_1 = %{
+      "filters" => %{
+        "project" => %{
+          "operator" => "equals",
+          "type" => "enum",
+          "value" => "filter_library"
+        }
+      }
+    }
+
+    demo_view_1 = %{
+      id: :demo_view_1,
+      name: "LiveFilter Tasks",
+      query_string: LiveFilter.UrlUtils.flatten_and_encode_params(demo_params_1),
+      color: "blue",
+      created_at: DateTime.utc_now()
+    }
+
+    demo_params_2 = %{
+      "filters" => %{
+        "assigned_to" => %{
+          "operator" => "in",
+          "type" => "enum",
+          "values" => ["jane_smith"]
+        },
+        "status" => %{
+          "operator" => "in",
+          "type" => "enum",
+          "values" => ["in_progress"]
+        },
+        "tags" => %{
+          "operator" => "contains_any",
+          "type" => "array",
+          "values" => ["bug"]
+        }
+      }
+    }
+
+    demo_view_2 = %{
+      id: :demo_view_2,
+      name: "Jane's Bugs",
+      query_string: LiveFilter.UrlUtils.flatten_and_encode_params(demo_params_2),
+      color: "rose",
+      created_at: DateTime.add(DateTime.utc_now(), -60, :second)
+    }
+
+    # Combine demo views with user's saved views
+    [demo_view_1, demo_view_2] ++ user_saved_views
   end
 end

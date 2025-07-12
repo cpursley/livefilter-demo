@@ -19,6 +19,8 @@ defmodule TodoApp.Application do
       TodoApp.Scheduler,
       # Start TableColumnPreferences GenServer for session-based column preferences
       TodoApp.TableColumnPreferences,
+      # Start TableFilterViews GenServer for session-based filter views
+      TodoApp.TableFilterViews,
       # Start to serve requests, typically the last entry
       TodoAppWeb.Endpoint
     ]

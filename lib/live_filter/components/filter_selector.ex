@@ -51,7 +51,7 @@ defmodule LiveFilter.Components.FilterSelector do
           label: "Add Filter",
           icon: "hero-plus",
           size: "sm",
-          variant: "outline",
+          variant: "ghost",
           class: nil
         },
         assigns
