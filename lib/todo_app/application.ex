@@ -17,6 +17,8 @@ defmodule TodoApp.Application do
       # {TodoApp.Worker, arg},
       # Start the Quantum scheduler
       TodoApp.Scheduler,
+      # Start TableColumnPreferences GenServer for session-based column preferences
+      TodoApp.TableColumnPreferences,
       # Start to serve requests, typically the last entry
       TodoAppWeb.Endpoint
     ]

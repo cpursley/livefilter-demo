@@ -54,13 +54,28 @@ defmodule TodoAppWeb.TodoLive.Index do
 
   Returns `{:ok, socket}` with initialized state.
   """
-  def mount(_params, _session, socket) do
+  def mount(_params, session, socket) do
+    # Generate or retrieve session ID for this browser session
+    session_id = get_or_generate_session_id(session)
+
+    # Load column preferences from TableColumnPreferences GenServer
+    visible_columns =
+      case TodoApp.TableColumnPreferences.get_column_preferences(session_id) do
+        columns when is_list(columns) ->
+          # Validate columns exist in our config
+          Enum.filter(columns, fn col -> Map.has_key?(column_config(), col) end)
+
+        nil ->
+          default_visible_columns()
+      end
+
     socket =
       socket
       |> mount_filters(
         registry: todo_field_registry(),
         default_sort: LiveFilter.Sort.new(:due_date, :asc)
       )
+      |> assign(:session_id, session_id)
       |> assign(:search_query, "")
       |> assign(:selected_statuses, [])
       |> assign(:selected_assignees, [])
@@ -74,7 +89,7 @@ defmodule TodoAppWeb.TodoLive.Index do
       |> assign(:per_page, 10)
       |> assign(:status_counts, %{})
       |> assign(:column_config, column_config())
-      |> assign(:visible_columns, default_visible_columns())
+      |> assign(:visible_columns, visible_columns)
       # Initialize empty streams for desktop table, desktop cards, and mobile views
       |> stream(:todos, [])
       |> stream(:todos_cards, [])
@@ -196,6 +211,12 @@ defmodule TodoAppWeb.TodoLive.Index do
 
   @impl true
   def handle_info({:column_visibility_changed, new_visible_columns}, socket) do
+    # Save column preferences to TableColumnPreferences GenServer
+    TodoApp.TableColumnPreferences.set_column_preferences(
+      socket.assigns.session_id,
+      new_visible_columns
+    )
+
     socket =
       socket
       |> assign(:visible_columns, new_visible_columns)
@@ -799,6 +820,28 @@ defmodule TodoAppWeb.TodoLive.Index do
     case Enum.find(optional_field_options(), fn {f, _, _, _} -> f == field end) do
       {_, _, type, _} -> type
       nil -> nil
+    end
+  end
+
+  # Gets or generates a unique session ID for user preferences
+  # Uses the Phoenix session cookie signing salt and timestamp to create a stable ID
+  defp get_or_generate_session_id(session) do
+    # Use the Phoenix session data itself to create a stable session ID
+    # This will be the same across page refreshes for the same browser session
+    session_data = Map.take(session, ["_csrf_token", "_live_session_id"])
+
+    case Map.values(session_data) do
+      [] ->
+        # Fallback if no session data is available
+        "anonymous_#{:erlang.system_time(:millisecond)}"
+
+      values ->
+        # Create a hash of the session data for a stable but unique ID
+        session_string = values |> Enum.join("|")
+
+        :crypto.hash(:sha256, session_string)
+        |> Base.encode64(padding: false)
+        |> String.slice(0, 16)
     end
   end
 end
