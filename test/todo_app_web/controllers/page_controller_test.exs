@@ -1,8 +1,8 @@
 defmodule TodoAppWeb.PageControllerTest do
   use TodoAppWeb.ConnCase
 
-  test "GET /", %{conn: conn} do
+  test "GET / redirects to /todos", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
+    assert redirected_to(conn) == "/todos"
   end
 end

@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+
+cd -P -- "$(dirname -- "$0")"
+echo "Running migrations..."
+./todo_app eval TodoApp.Release.migrate
+echo "Seeding database..."
+./todo_app eval TodoApp.Release.seed
+echo "Done!"

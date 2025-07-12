@@ -66,11 +66,11 @@ defmodule TodoApp.Todos.Todo do
 
   def project_options do
     [
-      %{value: "project_alpha", label: "Project Alpha"},
-      %{value: "project_beta", label: "Project Beta"},
-      %{value: "project_gamma", label: "Project Gamma"},
-      %{value: "internal_tools", label: "Internal Tools"},
-      %{value: "client_work", label: "Client Work"}
+      %{value: "phoenix_core", label: "Phoenix Core"},
+      %{value: "liveview_app", label: "LiveView App"},
+      %{value: "filter_library", label: "Filter Library"},
+      %{value: "admin_dashboard", label: "Admin Dashboard"},
+      %{value: "api_service", label: "API Service"}
     ]
   end
 
@@ -82,10 +82,14 @@ defmodule TodoApp.Todos.Todo do
       %{value: "documentation", label: "Documentation"},
       %{value: "testing", label: "Testing"},
       %{value: "refactoring", label: "Refactoring"},
-      %{value: "ui", label: "UI"},
-      %{value: "backend", label: "Backend"},
-      %{value: "urgent", label: "Urgent"},
-      %{value: "blocked", label: "Blocked"}
+      %{value: "liveview", label: "LiveView"},
+      %{value: "ecto", label: "Ecto"},
+      %{value: "performance", label: "Performance"},
+      %{value: "security", label: "Security"},
+      %{value: "pubsub", label: "PubSub"},
+      %{value: "genserver", label: "GenServer"},
+      %{value: "deployment", label: "Deployment"},
+      %{value: "ui/ux", label: "UI/UX"}
     ]
   end
 end

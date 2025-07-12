@@ -112,7 +112,7 @@ defmodule TodoApp.Seeds.DataGenerator do
 
   # Private helper functions
 
-  defp generate_urgent_tasks(today, assignees, projects) do
+  defp generate_urgent_tasks(today, assignees, _projects) do
     urgent_issues = [
       {"Fix LiveView websocket disconnection under heavy load", "Users experiencing random disconnections when server processes 1000+ concurrent LiveView connections. Need to investigate Ranch configuration and implement connection pooling.", ["liveview", "performance", "bug"]},
       {"Resolve Ecto pool timeout in checkout flow", "Database connection pool exhausted during peak hours causing 500 errors. Need to optimize N+1 queries in OrderController and increase pool size.", ["ecto", "bug", "performance"]},
@@ -310,7 +310,7 @@ defmodule TodoApp.Seeds.DataGenerator do
     end)
   end
 
-  defp generate_recurring_tasks(today, now, days_from_now, datetime_days_ago, assignees, projects) do
+  defp generate_recurring_tasks(today, now, days_from_now, datetime_days_ago, assignees, _projects) do
     recurring_types = [
       {"Review Dependabot PRs", 7, 1.5, "Review and merge dependency updates. Check for breaking changes and update tests.", ["security", "deployment"]},
       {"Update LiveView components docs", 7, 3.0, "Keep component documentation in sync with code changes. Update examples and type specs.", ["documentation", "liveview"]},
@@ -377,7 +377,7 @@ defmodule TodoApp.Seeds.DataGenerator do
     end)
   end
 
-  defp generate_complex_tasks(today, days_from_now, assignees, projects, random_hours) do
+  defp generate_complex_tasks(today, days_from_now, _assignees, _projects, random_hours) do
     complex_tasks = [
       {"Architect distributed CRDT system", "Design conflict-free replicated data types for offline-first LiveView. Implement vector clocks and merge strategies.", ["liveview", "genserver", "feature"]},
       {"Redesign Ecto query optimizer", "Build intelligent query planner that automatically optimizes N+1 queries. Use metaprogramming for compile-time optimization.", ["ecto", "performance", "feature"]},
@@ -450,7 +450,7 @@ defmodule TodoApp.Seeds.DataGenerator do
     end)
   end
 
-  defp generate_feature_requests(today, days_from_now, assignees, projects, random_hours) do
+  defp generate_feature_requests(today, days_from_now, _assignees, projects, random_hours) do
     feature_requests = [
       {"Add LiveView presence indicators", "Show real-time user presence in collaborative features. Display typing indicators and cursor positions.", 87, "High", ["liveview", "feature", "pubsub", "ui/ux"]},
       {"Implement Phoenix.Tracker for distributed state", "Use Phoenix.Tracker for maintaining distributed state across nodes. Enable cross-region state synchronization.", 65, "High", ["pubsub", "feature", "genserver"]},

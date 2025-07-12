@@ -1,125 +1,61 @@
-# LiveFilter Demo - TodoApp
+# LiveFilter Demonstration
 
-A comprehensive demonstration of the **LiveFilter** library for Phoenix LiveView, showcasing advanced filtering capabilities with real-world data.
+[![Hex.pm](https://img.shields.io/hexpm/v/livefilter.svg)](https://hex.pm/packages/livefilter)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-purple.svg)](https://hexdocs.pm/livefilter)
+
+A Phoenix LiveView application demonstrating **LiveFilter** - a comprehensive, reusable filtering library for Phoenix LiveView applications, inspired by Notion, Airtable and similar apps with advanced filter builders. It provides for filtering, sorting, and pagination with clean URL state management and a modern UI built on [SaladUI](https://salad-storybook.fly.dev/) and inspired by [shadcn/ui data tables](https://tablecn.com/).
+
 
 ## Overview
 
-This application demonstrates the LiveFilter library - a standalone, business-logic agnostic filtering system for Phoenix LiveView applications. The TodoApp serves as a reference implementation showing how to integrate advanced filtering capabilities into your Phoenix apps.
+This is a read-only todo app that showcases LiveFilter's capabilities. The LiveFilter library (`lib/live_filter/`) will be extracted as a standalone hex package.
 
 ## Features
 
-- **Real-time filtering** with immediate UI updates
-- **URL persistence** for shareable filter states
-- **Multiple filter types**: search, select, multi-select, date ranges, boolean toggles
-- **Extensible architecture** with protocol-based field types
-- **Production-ready** URL parameter handling
-- **Comprehensive test coverage** (258 tests)
+- Real-time filtering with URL persistence
+- Text search, single/multi-select, date ranges, boolean toggles, numeric inputs
+- Protocol-based extensible field types
+- Type-safe filter state management
+- Daily data refresh via Quantum scheduler
+- UI built with [SaladUI](https://salad-storybook.fly.dev/) components
 
-## Quick Start
+## Installation
 
-1. **Clone and setup:**
+1. **Prerequisites:**
+   - Elixir 1.15 or later
+   - PostgreSQL
+   - Node.js (for assets)
+
+2. **Setup:**
    ```bash
+   # Clone the repository
    git clone <repository>
    cd todo_app
+   
+   # Install dependencies and setup database
    mix setup
    ```
 
-2. **Start the server:**
+3. **Start the server:**
    ```bash
    mix phx.server
    ```
 
-3. **Visit the demo:**
-   Open [localhost:4000/todos](http://localhost:4000/todos) to see the filtering system in action.
+4. **Visit the demo:**
+   Open [localhost:4000/todos](http://localhost:4000/todos)
 
 ## LiveFilter Library
 
-The core LiveFilter library (`lib/live_filter/`) is designed as a standalone package that can be extracted and used in any Phoenix LiveView application. It provides:
+The LiveFilter library (`lib/live_filter/`) is designed to be extracted as a standalone hex package. It provides a complete filtering solution for Phoenix LiveView applications.
 
-### Core Modules
+### Core Architecture
 
-- **LiveFilter.Mountable** - LiveView integration via `use` macro
-- **LiveFilter.Field** - Protocol-based extensible field types  
-- **LiveFilter.FieldRegistry** - Central field configuration
-- **LiveFilter.UrlSerializer** - URL parameter persistence
-- **LiveFilter.QuickFilters** - Composable filter builders
-- **LiveFilter.EventRouter** - Dynamic event routing
-
-### Key Features
-
-- ✅ **Business-logic agnostic** - No domain-specific assumptions
-- ✅ **Fully customizable** - All functions overridable via options
-- ✅ **Protocol-based extensibility** - Custom field types supported
-- ✅ **URL-safe** - Handles complex parameter structures
-- ✅ **Type-safe** - Strong typing throughout the system
-- ✅ **Well-tested** - Comprehensive test coverage
-
-## Integration Example
-
-```elixir
-defmodule MyAppWeb.ProductLive do
-  use MyAppWeb, :live_view
-  use LiveFilter.Mountable
-
-  def mount(_params, _session, socket) do
-    socket = mount_filters(socket,
-      registry: product_field_registry(),
-      default_sort: Sort.new(:name, :asc)
-    )
-    {:ok, socket}
-  end
-
-  def handle_params(params, _url, socket) do
-    socket = handle_filter_params(socket, params)
-    {:noreply, load_products(socket)}
-  end
-
-  defp product_field_registry do
-    FieldRegistry.from_fields([
-      FieldRegistry.string_field(:name, "Product Name"),
-      FieldRegistry.enum_field(:category, "Category", category_options()),
-      FieldRegistry.date_field(:created_at, "Created Date")
-    ])
-  end
-end
-```
-
-## Architecture
-
-The TodoApp demonstrates a two-tier filtering system:
-
-1. **Default Filters** (always visible):
-   - Search input with multi-field search
-   - Status dropdown (single-select)
-   - Assignee selector (multi-select)
-   - Date range picker with presets
-   - Urgent toggle button
-
-2. **Optional Filters** (add via dropdown):
-   - Project, Tags, Hours, Complexity, Created date
-   - Dynamic UI based on field type
-   - Configurable with custom icons and options
-
-## Technical Details
-
-- **Phoenix LiveView** - Real-time web framework
-- **SaladUI Components** - Modern UI component library
-- **PostgreSQL** - Database with advanced querying
-- **Comprehensive Testing** - 258 tests covering all scenarios
-- **URL Parameter Handling** - Robust parsing of complex nested structures
-
-## Documentation
-
-For detailed documentation, architectural decisions, and implementation examples, see [notes.md](./notes.md).
-
-## Production Use
-
-The LiveFilter library is production-ready and handles real-world scenarios including:
-- Complex URL parameter encoding/decoding
-- Phoenix's automatic parameter parsing
-- Browser compatibility and URL encoding
-- Type-safe value conversion
-- Extensible field type system
+- **`LiveFilter.Mountable`** - LiveView integration with overridable callbacks
+- **`LiveFilter.Field`** - Protocol for extensible field types
+- **`LiveFilter.FieldRegistry`** - Centralized field configuration
+- **`LiveFilter.UIState`** - Filter state management with URL serialization
+- **`LiveFilter.QueryBuilder`** - Ecto query generation from filters
+- **`LiveFilter.QuickFilters`** - Helper functions for common filter patterns
 
 ## Development
 
@@ -127,16 +63,34 @@ The LiveFilter library is production-ready and handles real-world scenarios incl
 # Run tests
 mix test
 
-# Run with coverage
+# Run with coverage  
 mix test --cover
 
-# Start development server
-mix phx.server
+# Format code
+mix format
 
-# Interactive shell
+# Interactive console
 iex -S mix phx.server
 ```
 
+### Database Seeds
+
+```bash
+# Seed the database (also runs automatically on setup)
+mix run priv/repo/seeds.exs
+
+# Reset and reseed the database
+mix ecto.reset
+```
+
+Seeds automatically regenerate daily at 2 AM UTC to keep date filters relevant. The seed data includes todos with various statuses, assignees, due dates, and project categories.
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+Please make sure to update tests as appropriate.
+
 ## License
 
-[Add your license here]
+MIT License - see LICENSE file for details
