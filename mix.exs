@@ -56,6 +56,9 @@ defmodule TodoApp.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
       {:salad_ui, "~> 1.0.0-beta.3"},
+      # Uncomment the line below to use a local version of live_filter
+      # {:live_filter, path: "../livefilter"},
+      {:live_filter, "~> 0.1.0", hex: :livefilter},
       {:tidewave, "~> 0.1", only: :dev},
       {:quantum, "~> 3.0"}
     ]

@@ -34,7 +34,7 @@ import "./ui/components/accordion.js";
 import "./ui/components/slider.js";
 import "./ui/components/switch.js";
 import "./ui/components/dropdown_menu.js";
-import Hooks from "./hooks";
+import LiveFilter from "./hooks/live_filter/live_filter";
 
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -43,7 +43,7 @@ let liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken},
   hooks: { 
     SaladUI: SaladUI.SaladUIHook,
-    ...Hooks
+    LiveFilter
   }
 })
 
