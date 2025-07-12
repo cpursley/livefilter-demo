@@ -15,13 +15,14 @@ defmodule TodoApp.Release do
 
   def seed do
     load_app()
-    
+
     # Start the repos
     for repo <- repos() do
-      {:ok, _, _} = Ecto.Migrator.with_repo(repo, fn _repo ->
-        # Run the data generator inside the repo context
-        TodoApp.Seeds.DataGenerator.seed_database()
-      end)
+      {:ok, _, _} =
+        Ecto.Migrator.with_repo(repo, fn _repo ->
+          # Run the data generator inside the repo context
+          TodoApp.Seeds.DataGenerator.seed_database()
+        end)
     end
   end
 

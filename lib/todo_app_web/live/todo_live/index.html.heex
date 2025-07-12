@@ -2,6 +2,30 @@
   <:toolbar>
     <LiveFilterLayout.toolbar>
       <:quick_filters>
+        <%!-- View toggle - styled like tabs but using simple buttons --%>
+        <div class="hidden md:block">
+          <div class="inline-flex h-8 items-center justify-center rounded-md bg-muted p-0.5 text-muted-foreground">
+            <Button.button
+              variant="ghost"
+              size="sm"
+              class={"h-7 px-3 rounded-sm #{if @view_mode == "table", do: "bg-background text-foreground shadow-sm", else: ""}"}
+              phx-click={JS.push("change_view_mode", value: %{value: "table"})}
+              title="Table view"
+            >
+              <.icon name="hero-table-cells" class="h-4 w-4" />
+            </Button.button>
+            <Button.button
+              variant="ghost"
+              size="sm"
+              class={"h-7 px-3 rounded-sm #{if @view_mode == "cards", do: "bg-background text-foreground shadow-sm", else: ""}"}
+              phx-click={JS.push("change_view_mode", value: %{value: "cards"})}
+              title="Card view"
+            >
+              <.icon name="hero-squares-2x2" class="h-4 w-4" />
+            </Button.button>
+          </div>
+        </div>
+
         <%!-- Search bar --%>
         <FilterToolbar.search_input
           id="todo-search"
@@ -13,11 +37,13 @@
 
         <%!-- All filters group together --%>
         <FilterToolbar.status_filter
+          id="status-filter"
           selected_statuses={@selected_statuses}
           on_status_change="toggle_status_filter"
         />
 
         <FilterToolbar.assignee_filter
+          id="assignee-filter"
           selected_assignees={@selected_assignees}
           on_assignee_change="toggle_assignee_filter"
         />
@@ -59,285 +85,350 @@
 
   <:content>
     <LiveFilterLayout.data_container>
-      <TodoAppUi.Table.table aria-label="Todos list">
-        <TodoAppUi.Table.table_header>
-          <TodoAppUi.Table.table_row class="group">
-            <TodoAppUi.Table.table_head class="w-8">
-              <.icon name="hero-flag" class="h-4 w-4" />
-            </TodoAppUi.Table.table_head>
-            <.sortable_header
-              field={:title}
-              label="Title"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:description in @visible_columns}
-              field={:description}
-              label="Description"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:tags in @visible_columns}
-              field={:tags}
-              label="Tags"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:status in @visible_columns}
-              field={:status}
-              label="Status"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:project in @visible_columns}
-              field={:project}
-              label="Project"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:assigned_to in @visible_columns}
-              field={:assigned_to}
-              label="Assignee"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:due_date in @visible_columns}
-              field={:due_date}
-              label="Due Date"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:created_at in @visible_columns}
-              field={:inserted_at}
-              label="Created"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:estimated_hours in @visible_columns}
-              field={:estimated_hours}
-              label="Est. Hours"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-              class="text-right"
-            />
-            <.sortable_header
-              :if={:actual_hours in @visible_columns}
-              field={:actual_hours}
-              label="Actual Hours"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-              class="text-right"
-            />
-            <.sortable_header
-              :if={:complexity in @visible_columns}
-              field={:complexity}
-              label="Complexity"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:completed_at in @visible_columns}
-              field={:completed_at}
-              label="Completed"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <.sortable_header
-              :if={:is_recurring in @visible_columns}
-              field={:is_recurring}
-              label="Recurring"
-              current_sort={@current_sort}
-              phx-click="sort_by"
-            />
-            <TodoAppUi.Table.table_head class="w-10">
-              <.live_component
-                module={LiveFilter.Components.ColumnSettings}
-                id="column-settings"
-                columns={@column_config}
-                visible_columns={@visible_columns}
-              />
-            </TodoAppUi.Table.table_head>
-          </TodoAppUi.Table.table_row>
-        </TodoAppUi.Table.table_header>
-        <TodoAppUi.Table.table_body id="todos-stream" phx-update="stream">
-          <TodoAppUi.Table.table_row
-            :for={{id, todo} <- @streams.todos}
-            id={id}
-            class="cursor-pointer hover:bg-muted/50"
+      <%!-- Sort dropdown - show on mobile or in cards view on desktop --%>
+      <div class={
+        cond do
+          @view_mode == "cards" -> "block px-4 py-3 flex justify-end"
+          true -> "block md:hidden px-4 py-3 flex justify-end"
+        end
+      }>
+        <LiveFilter.Components.Select.select
+          id={"#{@view_mode}-sort-select"}
+          options={[
+            {"title", "Title"},
+            {"status", "Status"},
+            {"assigned_to", "Assignee"},
+            {"due_date", "Due Date"},
+            {"inserted_at", "Created"},
+            {"complexity", "Complexity"}
+          ]}
+          selected={if @current_sort, do: to_string(@current_sort.field), else: nil}
+          on_change="mobile_sort_change"
+          label="Sort"
+          icon="hero-arrows-up-down"
+          clearable={true}
+        />
+      </div>
+
+      <%!-- Mobile cards - always shown on mobile --%>
+      <div class="block md:hidden">
+        <div class="grid grid-cols-1 gap-4 px-4 pb-4" id="todos-mobile" phx-update="stream">
+          <div :for={{id, todo} <- @streams.todos_mobile} id={id}>
+            <TodoCard.todo_card todo={todo} />
+          </div>
+        </div>
+      </div>
+
+      <%!-- Desktop views - use conditional rendering to completely remove inactive view from DOM --%>
+      <%= if @view_mode == "cards" do %>
+        <div class="hidden md:block">
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-4 pb-4"
+            id="todos-desktop-cards"
+            phx-update="stream"
           >
-            <TodoAppUi.Table.table_cell class="text-center">
-              <%= if todo.is_urgent do %>
-                <.icon name="hero-exclamation-circle" class="h-4 w-4 text-destructive" />
-              <% end %>
-            </TodoAppUi.Table.table_cell>
-
-            <TodoAppUi.Table.table_cell class="font-medium">
-              <div class="line-clamp-1">{todo.title}</div>
-
-              <%!-- Show description and tags in title column when they're hidden --%>
-              <%= if :description not in @visible_columns and todo.description do %>
-                <div class="text-sm text-muted-foreground line-clamp-1 mt-1">
-                  {String.slice(todo.description, 0, 80)}{if String.length(todo.description) > 80,
-                    do: "..."}
-                </div>
-              <% end %>
-
-              <%= if :tags not in @visible_columns and todo.tags && length(todo.tags) > 0 do %>
-                <div class="flex gap-1 flex-wrap mt-1">
-                  <Badge.badge
-                    :for={tag <- Enum.take(todo.tags, 2)}
-                    variant="outline"
-                    class="text-xs py-0 px-1.5"
-                  >
-                    {tag}
-                  </Badge.badge>
-                  <%= if length(todo.tags) > 2 do %>
-                    <span class="text-xs text-muted-foreground">+{length(todo.tags) - 2}</span>
+            <div :for={{id, todo} <- @streams.todos_cards} id={id}>
+              <TodoCard.todo_card todo={todo} />
+            </div>
+          </div>
+        </div>
+      <% else %>
+        <div class="hidden md:block">
+          <TodoAppUi.Table.table aria-label="Todos list">
+            <TodoAppUi.Table.table_header>
+              <TodoAppUi.Table.table_row class="group">
+                <TodoAppUi.Table.table_head class="w-8">
+                  <.icon name="hero-flag" class="h-4 w-4" />
+                </TodoAppUi.Table.table_head>
+                <.sortable_header
+                  field={:title}
+                  label="Title"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:description in @visible_columns}
+                  field={:description}
+                  label="Description"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:tags in @visible_columns}
+                  field={:tags}
+                  label="Tags"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:status in @visible_columns}
+                  field={:status}
+                  label="Status"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:project in @visible_columns}
+                  field={:project}
+                  label="Project"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:assigned_to in @visible_columns}
+                  field={:assigned_to}
+                  label="Assignee"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:due_date in @visible_columns}
+                  field={:due_date}
+                  label="Due Date"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:created_at in @visible_columns}
+                  field={:inserted_at}
+                  label="Created"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:estimated_hours in @visible_columns}
+                  field={:estimated_hours}
+                  label="Est. Hours"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                  class="text-right"
+                />
+                <.sortable_header
+                  :if={:actual_hours in @visible_columns}
+                  field={:actual_hours}
+                  label="Actual Hours"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                  class="text-right"
+                />
+                <.sortable_header
+                  :if={:complexity in @visible_columns}
+                  field={:complexity}
+                  label="Complexity"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:completed_at in @visible_columns}
+                  field={:completed_at}
+                  label="Completed"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <.sortable_header
+                  :if={:is_recurring in @visible_columns}
+                  field={:is_recurring}
+                  label="Recurring"
+                  current_sort={@current_sort}
+                  phx-click="sort_by"
+                />
+                <TodoAppUi.Table.table_head class="w-10">
+                  <.live_component
+                    module={LiveFilter.Components.ColumnSettings}
+                    id="column-settings"
+                    columns={@column_config}
+                    visible_columns={@visible_columns}
+                  />
+                </TodoAppUi.Table.table_head>
+              </TodoAppUi.Table.table_row>
+            </TodoAppUi.Table.table_header>
+            <TodoAppUi.Table.table_body id="todos-stream" phx-update="stream">
+              <TodoAppUi.Table.table_row
+                :for={{id, todo} <- @streams.todos}
+                id={id}
+                class="cursor-pointer hover:bg-muted/50"
+              >
+                <TodoAppUi.Table.table_cell class="text-center">
+                  <%= if todo.is_urgent do %>
+                    <.icon name="hero-exclamation-circle" class="h-4 w-4 text-destructive" />
                   <% end %>
-                </div>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:description in @visible_columns}>
-              <%= if todo.description do %>
-                <div class="text-sm text-muted-foreground line-clamp-2">
-                  {todo.description}
-                </div>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                <TodoAppUi.Table.table_cell class="font-medium">
+                  <div class="line-clamp-1">{todo.title}</div>
 
-            <TodoAppUi.Table.table_cell :if={:tags in @visible_columns}>
-              <%= if todo.tags && length(todo.tags) > 0 do %>
-                <div class="flex gap-1 flex-wrap">
-                  <Badge.badge
-                    :for={tag <- Enum.take(todo.tags, 3)}
-                    variant="outline"
-                    class="text-xs py-0 px-1.5"
-                  >
-                    {tag}
-                  </Badge.badge>
-                  <%= if length(todo.tags) > 3 do %>
-                    <span class="text-xs text-muted-foreground">+{length(todo.tags) - 3}</span>
+                  <%!-- Show description and tags in title column when they're hidden --%>
+                  <%= if :description not in @visible_columns and todo.description do %>
+                    <div class="text-sm text-muted-foreground line-clamp-1 mt-1">
+                      {String.slice(todo.description, 0, 80)}{if String.length(todo.description) >
+                                                                   80,
+                                                                 do: "..."}
+                    </div>
                   <% end %>
-                </div>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:status in @visible_columns}>
-              <Badge.badge variant={status_variant(todo.status)} class="text-xs whitespace-nowrap">
-                {Phoenix.Naming.humanize(todo.status)}
-              </Badge.badge>
-            </TodoAppUi.Table.table_cell>
+                  <%= if :tags not in @visible_columns and todo.tags && length(todo.tags) > 0 do %>
+                    <div class="flex gap-1 flex-wrap mt-1">
+                      <Badge.badge
+                        :for={tag <- Enum.take(todo.tags, 2)}
+                        variant="outline"
+                        class="text-xs py-0 px-1.5"
+                      >
+                        {tag}
+                      </Badge.badge>
+                      <%= if length(todo.tags) > 2 do %>
+                        <span class="text-xs text-muted-foreground">
+                          +{length(todo.tags) - 2}
+                        </span>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:project in @visible_columns}>
-              <%= if todo.project do %>
-                <span class="text-sm">{format_project_name(todo.project)}</span>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                <TodoAppUi.Table.table_cell :if={:description in @visible_columns}>
+                  <%= if todo.description do %>
+                    <div class="text-sm text-muted-foreground line-clamp-2">
+                      {todo.description}
+                    </div>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:assigned_to in @visible_columns}>
-              <%= if todo.assigned_to do %>
-                <div class="flex items-center gap-2">
-                  <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-                    {String.first(todo.assigned_to) |> String.upcase()}
-                  </div>
+                <TodoAppUi.Table.table_cell :if={:tags in @visible_columns}>
+                  <%= if todo.tags && length(todo.tags) > 0 do %>
+                    <div class="flex gap-1 flex-wrap">
+                      <Badge.badge
+                        :for={tag <- Enum.take(todo.tags, 3)}
+                        variant="outline"
+                        class="text-xs py-0 px-1.5"
+                      >
+                        {tag}
+                      </Badge.badge>
+                      <%= if length(todo.tags) > 3 do %>
+                        <span class="text-xs text-muted-foreground">
+                          +{length(todo.tags) - 3}
+                        </span>
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
+
+                <TodoAppUi.Table.table_cell :if={:status in @visible_columns}>
+                  <Badge.badge
+                    variant={status_variant(todo.status)}
+                    class="text-xs whitespace-nowrap"
+                  >
+                    {Phoenix.Naming.humanize(todo.status)}
+                  </Badge.badge>
+                </TodoAppUi.Table.table_cell>
+
+                <TodoAppUi.Table.table_cell :if={:project in @visible_columns}>
+                  <%= if todo.project do %>
+                    <span class="text-sm">{format_project_name(todo.project)}</span>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
+
+                <TodoAppUi.Table.table_cell :if={:assigned_to in @visible_columns}>
+                  <%= if todo.assigned_to do %>
+                    <div class="flex items-center gap-2">
+                      <div class="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                        {String.first(todo.assigned_to) |> String.upcase()}
+                      </div>
+                      <span class="text-sm text-muted-foreground">
+                        {format_assignee_name(todo.assigned_to)}
+                      </span>
+                    </div>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">Unassigned</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
+
+                <TodoAppUi.Table.table_cell :if={:due_date in @visible_columns}>
+                  <%= if todo.due_date do %>
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm">{format_date(todo.due_date)}</span>
+                      <%= if Date.compare(todo.due_date, Date.utc_today()) == :lt do %>
+                        <.icon
+                          name="hero-exclamation-triangle"
+                          class="h-3.5 w-3.5 text-destructive"
+                        />
+                      <% end %>
+                    </div>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
+
+                <TodoAppUi.Table.table_cell :if={:created_at in @visible_columns}>
                   <span class="text-sm text-muted-foreground">
-                    {format_assignee_name(todo.assigned_to)}
+                    {format_datetime(todo.inserted_at)}
                   </span>
-                </div>
-              <% else %>
-                <span class="text-sm text-muted-foreground">Unassigned</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:due_date in @visible_columns}>
-              <%= if todo.due_date do %>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-sm">{format_date(todo.due_date)}</span>
-                  <%= if Date.compare(todo.due_date, Date.utc_today()) == :lt do %>
-                    <.icon name="hero-exclamation-triangle" class="h-3.5 w-3.5 text-destructive" />
+                <TodoAppUi.Table.table_cell
+                  :if={:estimated_hours in @visible_columns}
+                  class="text-right"
+                >
+                  <%= if todo.estimated_hours do %>
+                    <span class="text-sm font-mono">
+                      {:erlang.float_to_binary(todo.estimated_hours, decimals: 1)}h
+                    </span>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
                   <% end %>
-                </div>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:created_at in @visible_columns}>
-              <span class="text-sm text-muted-foreground">
-                {format_datetime(todo.inserted_at)}
-              </span>
-            </TodoAppUi.Table.table_cell>
+                <TodoAppUi.Table.table_cell
+                  :if={:actual_hours in @visible_columns}
+                  class="text-right"
+                >
+                  <%= if todo.actual_hours do %>
+                    <span class="text-sm font-mono">
+                      {:erlang.float_to_binary(todo.actual_hours, decimals: 1)}h
+                    </span>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell
-              :if={:estimated_hours in @visible_columns}
-              class="text-right"
-            >
-              <%= if todo.estimated_hours do %>
-                <span class="text-sm font-mono">
-                  {:erlang.float_to_binary(todo.estimated_hours, decimals: 1)}h
-                </span>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                <TodoAppUi.Table.table_cell :if={:complexity in @visible_columns}>
+                  <%= if todo.complexity do %>
+                    <span class="text-sm">{todo.complexity}/10</span>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:actual_hours in @visible_columns} class="text-right">
-              <%= if todo.actual_hours do %>
-                <span class="text-sm font-mono">
-                  {:erlang.float_to_binary(todo.actual_hours, decimals: 1)}h
-                </span>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                <TodoAppUi.Table.table_cell :if={:completed_at in @visible_columns}>
+                  <%= if todo.completed_at do %>
+                    <span class="text-sm text-muted-foreground">
+                      {format_datetime(todo.completed_at)}
+                    </span>
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:complexity in @visible_columns}>
-              <%= if todo.complexity do %>
-                <span class="text-sm">{todo.complexity}/10</span>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
+                <TodoAppUi.Table.table_cell :if={:is_recurring in @visible_columns}>
+                  <%= if todo.is_recurring do %>
+                    <.icon name="hero-arrow-path" class="h-4 w-4 text-muted-foreground" />
+                  <% else %>
+                    <span class="text-sm text-muted-foreground">-</span>
+                  <% end %>
+                </TodoAppUi.Table.table_cell>
 
-            <TodoAppUi.Table.table_cell :if={:completed_at in @visible_columns}>
-              <%= if todo.completed_at do %>
-                <span class="text-sm text-muted-foreground">
-                  {format_datetime(todo.completed_at)}
-                </span>
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
-
-            <TodoAppUi.Table.table_cell :if={:is_recurring in @visible_columns}>
-              <%= if todo.is_recurring do %>
-                <.icon name="hero-arrow-path" class="h-4 w-4 text-muted-foreground" />
-              <% else %>
-                <span class="text-sm text-muted-foreground">-</span>
-              <% end %>
-            </TodoAppUi.Table.table_cell>
-
-            <TodoAppUi.Table.table_cell class="w-10">
-              <%!-- Empty cell for settings column --%>
-            </TodoAppUi.Table.table_cell>
-          </TodoAppUi.Table.table_row>
-        </TodoAppUi.Table.table_body>
-      </TodoAppUi.Table.table>
+                <TodoAppUi.Table.table_cell class="w-10">
+                  <%!-- Empty cell for settings column --%>
+                </TodoAppUi.Table.table_cell>
+              </TodoAppUi.Table.table_row>
+            </TodoAppUi.Table.table_body>
+          </TodoAppUi.Table.table>
+        </div>
+      <% end %>
 
       <LiveFilterLayout.empty_state
         :if={@todo_count == 0}

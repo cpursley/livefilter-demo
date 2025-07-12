@@ -33,7 +33,7 @@ defmodule TodoAppWeb.TodoLive.Index do
 
   alias TodoApp.Todos
   alias TodoAppUi.{Badge, Button}
-  alias TodoAppWeb.Components.{LiveFilterLayout, FilterToolbar, PaginationHelper}
+  alias TodoAppWeb.Components.{LiveFilterLayout, FilterToolbar, PaginationHelper, TodoCard}
   alias LiveFilter.QuickFilters
   import LiveFilter.Components.SortableHeader
 
@@ -70,13 +70,15 @@ defmodule TodoAppWeb.TodoLive.Index do
       |> assign(:active_optional_filters, [])
       # Store values for optional filters
       |> assign(:optional_filter_values, %{})
-      |> assign(:view_type, "table")
+      |> assign(:view_mode, "table")
       |> assign(:per_page, 10)
       |> assign(:status_counts, %{})
       |> assign(:column_config, column_config())
       |> assign(:visible_columns, default_visible_columns())
-      # Initialize empty stream, will be populated in handle_params
+      # Initialize empty streams for desktop table, desktop cards, and mobile views
       |> stream(:todos, [])
+      |> stream(:todos_cards, [])
+      |> stream(:todos_mobile, [])
 
     {:ok, socket}
   end
@@ -255,23 +257,43 @@ defmodule TodoAppWeb.TodoLive.Index do
   end
 
   def handle_event("sort_by", %{"field" => field}, socket) do
-    field_atom = String.to_existing_atom(field)
-    current_sort = socket.assigns.current_sort
+    # Handle clear sort
+    if field == "clear" do
+      socket =
+        socket
+        |> assign(:current_sort, nil)
+        |> load_todos_and_update_url_state()
 
-    # Toggle direction if clicking on the same field, otherwise default to asc
-    new_sort =
-      if current_sort && current_sort.field == field_atom do
-        LiveFilter.Sort.toggle_direction(current_sort)
-      else
-        LiveFilter.Sort.new(field_atom, :asc)
-      end
+      {:noreply, socket}
+    else
+      field_atom = String.to_existing_atom(field)
+      current_sort = socket.assigns.current_sort
 
-    socket =
-      socket
-      |> assign(:current_sort, new_sort)
-      |> load_todos_and_update_url_state()
+      # Toggle direction if clicking on the same field, otherwise default to asc
+      new_sort =
+        if current_sort && current_sort.field == field_atom do
+          LiveFilter.Sort.toggle_direction(current_sort)
+        else
+          LiveFilter.Sort.new(field_atom, :asc)
+        end
 
-    {:noreply, socket}
+      socket =
+        socket
+        |> assign(:current_sort, new_sort)
+        |> load_todos_and_update_url_state()
+
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("mobile_sort_change", %{"value" => value}, socket) do
+    # Convert to sort_by event format
+    if value == "" do
+      # Clear sort
+      handle_event("sort_by", %{"field" => "clear"}, socket)
+    else
+      handle_event("sort_by", %{"field" => value}, socket)
+    end
   end
 
   def handle_event("change_per_page", %{"per_page" => per_page}, socket) do
@@ -319,6 +341,18 @@ defmodule TodoAppWeb.TodoLive.Index do
       # Reset to first page when clearing filters
       |> assign(:current_page, 1)
       |> load_todos_and_update_url_state()
+
+    {:noreply, socket}
+  end
+
+  def handle_event("change_view_mode", params, socket) do
+    # The tabs component sends the value in the "value" key
+    mode = params["value"] || params["tab"]
+
+    socket =
+      socket
+      |> assign(:view_mode, mode)
+      |> load_todos()
 
     {:noreply, socket}
   end
@@ -428,6 +462,14 @@ defmodule TodoAppWeb.TodoLive.Index do
 
     socket
     |> stream(:todos, pagination_result.todos, reset: true)
+    |> stream(:todos_cards, pagination_result.todos,
+      reset: true,
+      dom_id: fn todo -> "cards-#{todo.id}" end
+    )
+    |> stream(:todos_mobile, pagination_result.todos,
+      reset: true,
+      dom_id: fn todo -> "mobile-#{todo.id}" end
+    )
     |> assign(:todo_count, length(pagination_result.todos))
     |> assign(:total_count, pagination_result.total_count)
     |> assign(:total_pages, pagination_result.total_pages)

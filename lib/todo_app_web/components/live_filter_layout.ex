@@ -70,7 +70,7 @@ defmodule TodoAppWeb.Components.LiveFilterLayout do
                   )
                 ]}
               >
-                <.icon name="hero-table-cells" class="w-4 h-4 mr-2" /> Table
+                <.icon name="hero-clipboard-document-check" class="w-4 h-4 mr-2" /> Todos
               </.link>
               <a
                 href="https://hexdocs.pm/livefilter"
