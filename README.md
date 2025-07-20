@@ -1,10 +1,6 @@
 # LiveFilter Demonstration
 
-[![Hex.pm](https://img.shields.io/hexpm/v/livefilter.svg)](https://hex.pm/packages/livefilter)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-purple.svg)](https://hexdocs.pm/livefilter)
-
-A Phoenix LiveView application demonstrating **LiveFilter** - a comprehensive, reusable filtering library for Phoenix LiveView applications, inspired by Notion, Airtable and similar apps with advanced filter builders. It provides for filtering, sorting, and pagination with clean URL state management and a modern UI built on [SaladUI](https://salad-storybook.fly.dev/) and inspired by [shadcn/ui data tables](https://tablecn.com/).
-
+A Phoenix LiveView application demonstrating [LiveFilter](https://github.com/cpursley/livefilter) - a comprehensive, reusable filtering library for Phoenix LiveView applications, inspired by Notion, Airtable and similar apps with advanced filter builders. It provides for filtering, sorting, and pagination with clean URL state management and a modern UI built on [SaladUI](https://salad-storybook.fly.dev/) and inspired by [shadcn/ui data tables](https://tablecn.com/).
 
 ## Overview
 
