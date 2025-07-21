@@ -58,7 +58,7 @@ defmodule TodoApp.MixProject do
       {:salad_ui, "~> 1.0.0-beta.3"},
       # Uncomment the line below to use a local version of live_filter
       # {:livefilter, path: "../livefilter"},
-      {:livefilter, "~> 0.1.5"},
+      {:livefilter, "~> 0.1.7"},
       {:tidewave, "~> 0.1", only: :dev},
       {:quantum, "~> 3.0"}
     ]

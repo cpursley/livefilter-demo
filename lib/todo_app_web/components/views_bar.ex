@@ -28,7 +28,7 @@ defmodule TodoAppWeb.Components.ViewsBar do
   def views_bar(assigns) do
     ~H"""
     <div class={[
-      "flex items-center gap-2 px-4 py-2 border-b overflow-x-auto",
+      "flex items-center gap-2 px-4 py-2 border-b flex-wrap",
       @class
     ]}>
       <%!-- Views label with icon --%>
@@ -62,7 +62,11 @@ defmodule TodoAppWeb.Components.ViewsBar do
             @current_query_string == view.query_string
           )
         ]}>
-          <span phx-click={@on_apply} phx-value-query_string={view.query_string}>
+          <span
+            phx-click={@on_apply}
+            phx-value-query_string={view.query_string}
+            class="whitespace-nowrap"
+          >
             {view.name}
           </span>
           <%!-- Delete button inside the badge --%>

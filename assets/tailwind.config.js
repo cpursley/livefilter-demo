@@ -11,7 +11,7 @@ module.exports = {
     "./js/**/*.js",
     "../lib/todo_app_web.ex",
     "../lib/todo_app_web/**/*.*ex",
-    "../lib/live_filter/**/*.ex"
+    "../../livefilter/lib/**/*.ex"
   ],
   theme: {
     container: {

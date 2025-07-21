@@ -123,7 +123,21 @@
             {"inserted_at", "Created"},
             {"complexity", "Complexity"}
           ]}
-          selected={if @current_sort, do: to_string(@current_sort.field), else: nil}
+          selected={
+            cond do
+              is_nil(@current_sort) ->
+                nil
+
+              is_list(@current_sort) && length(@current_sort) > 0 ->
+                to_string(hd(@current_sort).field)
+
+              is_map(@current_sort) ->
+                to_string(@current_sort.field)
+
+              true ->
+                nil
+            end
+          }
           on_change="mobile_sort_change"
           label="Sort"
           icon="hero-arrows-up-down"
@@ -155,7 +169,11 @@
         </div>
       <% else %>
         <div class="hidden md:block">
-          <SaladUI.Table.table aria-label="Todos list">
+          <SaladUI.Table.table
+            aria-label="Todos list"
+            phx-hook="SortableHeader"
+            id="sortable-table"
+          >
             <SaladUI.Table.table_header>
               <SaladUI.Table.table_row class="group">
                 <SaladUI.Table.table_head class="w-8">

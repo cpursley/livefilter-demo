@@ -288,7 +288,7 @@ defmodule TodoAppWeb.TodoLive.Index do
     {:noreply, socket}
   end
 
-  def handle_event("sort_by", %{"field" => field}, socket) do
+  def handle_event("sort_by", %{"field" => field} = params, socket) do
     # Handle clear sort
     if field == "clear" do
       socket =
@@ -299,19 +299,34 @@ defmodule TodoAppWeb.TodoLive.Index do
       {:noreply, socket}
     else
       field_atom = String.to_existing_atom(field)
-      current_sort = socket.assigns.current_sort
+      current_sorts = ensure_list(socket.assigns.current_sort)
+      shift_key = params["shiftKey"] == "true"
 
-      # Toggle direction if clicking on the same field, otherwise default to asc
-      new_sort =
-        if current_sort && current_sort.field == field_atom do
-          LiveFilter.Sort.toggle_direction(current_sort)
+      new_sorts =
+        if shift_key do
+          # Multi-column sort: add or update field in list
+          update_multi_column_sort(current_sorts, field_atom)
         else
-          LiveFilter.Sort.new(field_atom, :asc)
+          # Single column sort: replace all sorts
+          case find_sort_by_field(current_sorts, field_atom) do
+            nil ->
+              # New field, start with ascending
+              [LiveFilter.Sort.new(field_atom, :asc)]
+
+            existing_sort ->
+              # Same field, toggle direction or remove on third click
+              if existing_sort.direction == :desc do
+                # Third click removes the sort
+                []
+              else
+                [LiveFilter.Sort.toggle_direction(existing_sort)]
+              end
+          end
         end
 
       socket =
         socket
-        |> assign(:current_sort, new_sort)
+        |> assign(:current_sort, if(new_sorts == [], do: nil, else: new_sorts))
         |> load_todos_and_update_url_state()
 
       {:noreply, socket}
@@ -324,7 +339,8 @@ defmodule TodoAppWeb.TodoLive.Index do
       # Clear sort
       handle_event("sort_by", %{"field" => "clear"}, socket)
     else
-      handle_event("sort_by", %{"field" => value}, socket)
+      # Mobile doesn't support shift key, so always single sort
+      handle_event("sort_by", %{"field" => value, "shiftKey" => "false"}, socket)
     end
   end
 
@@ -734,6 +750,15 @@ defmodule TodoAppWeb.TodoLive.Index do
           # Use the date_range_filter helper which handles between operator correctly
           LiveFilter.QuickFilters.date_range_filter(field, range, type: type)
 
+        # Handle numeric range values with between operator
+        {:float, {start_val, end_val}} ->
+          %LiveFilter.Filter{
+            field: field,
+            operator: :between,
+            value: {start_val, end_val},
+            type: :float
+          }
+
         _ ->
           # For other types, use standard filter creation
           %LiveFilter.Filter{
@@ -784,9 +809,6 @@ defmodule TodoAppWeb.TodoLive.Index do
          options:
            TodoApp.Todos.Todo.tag_options() |> Enum.map(fn %{value: v, label: l} -> {v, l} end)
        }},
-      {:estimated_hours, "Est. Hours", :float, %{icon: "hero-clock"}},
-      {:actual_hours, "Actual Hours", :float, %{icon: "hero-check-circle"}},
-      {:complexity, "Complexity", :integer, %{icon: "hero-chart-bar"}},
       {:inserted_at, "Created", :utc_datetime, %{icon: "hero-clock"}}
     ]
   end
@@ -810,6 +832,14 @@ defmodule TodoAppWeb.TodoLive.Index do
 
         {:select, status} ->
           [LiveFilter.TypeUtils.safe_to_atom(status)]
+
+        {:single, status} ->
+          # Handle the simple select component format
+          if status == "" do
+            []
+          else
+            [LiveFilter.TypeUtils.safe_to_atom(status)]
+          end
 
         _ ->
           socket.assigns.selected_statuses
@@ -912,7 +942,6 @@ defmodule TodoAppWeb.TodoLive.Index do
       assigned_to: %{label: "Assignee", toggleable: true, default_visible: true},
       due_date: %{label: "Due Date", toggleable: true, default_visible: true},
       estimated_hours: %{label: "Est. Hours", toggleable: true, default_visible: true},
-
       # Optional - hidden by default
       description: %{label: "Description", toggleable: true, default_visible: false},
       tags: %{label: "Tags", toggleable: true, default_visible: false},
@@ -1111,5 +1140,37 @@ defmodule TodoAppWeb.TodoLive.Index do
 
     # Combine demo views with user's saved views
     [demo_view_1, demo_view_2] ++ user_saved_views
+  end
+
+  # Helper functions for multi-column sorting
+  defp ensure_list(nil), do: []
+  defp ensure_list(sorts) when is_list(sorts), do: sorts
+  defp ensure_list(%LiveFilter.Sort{} = sort), do: [sort]
+
+  defp find_sort_by_field(sorts, field) do
+    Enum.find(sorts, fn sort -> sort.field == field end)
+  end
+
+  defp update_multi_column_sort(sorts, field) do
+    case find_sort_by_field(sorts, field) do
+      nil ->
+        # Add new field to the end with ascending order
+        sorts ++ [LiveFilter.Sort.new(field, :asc)]
+
+      existing_sort ->
+        if existing_sort.direction == :desc do
+          # Remove field on third click (asc -> desc -> remove)
+          Enum.reject(sorts, fn sort -> sort.field == field end)
+        else
+          # Toggle direction of existing field
+          Enum.map(sorts, fn sort ->
+            if sort.field == field do
+              LiveFilter.Sort.toggle_direction(sort)
+            else
+              sort
+            end
+          end)
+        end
+    end
   end
 end

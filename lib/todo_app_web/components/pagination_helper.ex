@@ -32,18 +32,19 @@ defmodule TodoAppWeb.Components.PaginationHelper do
         <div class="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
           <div class="flex items-center space-x-2">
             <p class="whitespace-nowrap text-sm font-medium">Rows per page</p>
-            <select
-              id="per-page-select"
-              name="per_page"
-              value={to_string(@per_page)}
-              class="h-9 w-[70px] rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              phx-change={@on_per_page_change}
-            >
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
+            <form phx-change={@on_per_page_change}>
+              <select
+                id="per-page-select"
+                name="per_page"
+                value={to_string(@per_page)}
+                class="h-9 w-[70px] rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </form>
           </div>
 
           <.pagination :if={@total_pages > 1}>

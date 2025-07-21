@@ -18,6 +18,7 @@ defmodule TodoAppWeb.Components.FilterToolbar do
 
   import Phoenix.Component
   import LiveFilter.Components.SearchSelect
+  import LiveFilter.Components.Select
   alias LiveFilter.Components.{FilterSelector, QuickFilter}
 
   alias Phoenix.LiveView.JS
@@ -112,25 +113,33 @@ defmodule TodoAppWeb.Components.FilterToolbar do
     ]
 
   def status_filter(assigns) do
-    # Convert status tuples to SearchSelect format
+    # Convert status tuples to Select format
     options =
       Enum.map(assigns.statuses, fn {value, label, _variant} ->
-        {value, label}
+        {to_string(value), label}
       end)
 
-    assigns = assign(assigns, :options, options)
+    # Get the first selected status as a string (since select only supports single selection)
+    selected =
+      case assigns.selected_statuses do
+        [status | _] -> to_string(status)
+        _ -> nil
+      end
+
+    assigns =
+      assigns
+      |> assign(:options, options)
+      |> assign(:selected, selected)
 
     ~H"""
-    <.search_select
+    <.select
       id={@id}
       options={@options}
-      selected={@selected_statuses}
+      selected={@selected}
       on_change={@on_status_change}
       label="Status"
       icon="hero-circle-stack"
-      multiple={false}
       clearable={true}
-      display_count={3}
     />
     """
   end
@@ -319,17 +328,21 @@ defmodule TodoAppWeb.Components.FilterToolbar do
   def optional_filters_section(assigns) do
     ~H"""
     <div class={["flex flex-wrap items-center gap-2", @class]}>
-      <.live_component
-        :for={field <- @active_filters}
-        module={QuickFilter}
-        id={"optional-filter-#{field}"}
-        field={field}
-        label={get_filter_label(@available_filters, field)}
-        type={get_filter_type(@available_filters, field)}
-        value={Map.get(@filter_values, field)}
-        icon={get_filter_icon(@available_filters, field)}
-        options={get_filter_options(@available_filters, field)}
-      />
+      <%= for field <- @active_filters do %>
+        <%= case field do %>
+          <% _ -> %>
+            <.live_component
+              module={QuickFilter}
+              id={"optional-filter-#{field}"}
+              field={field}
+              label={get_filter_label(@available_filters, field)}
+              type={get_filter_type(@available_filters, field)}
+              value={Map.get(@filter_values, field)}
+              icon={get_filter_icon(@available_filters, field)}
+              options={get_filter_options(@available_filters, field)}
+            />
+        <% end %>
+      <% end %>
 
       <.live_component
         module={FilterSelector}
